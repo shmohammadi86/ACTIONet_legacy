@@ -1,0 +1,454 @@
+assess.continuous.autocorrelation <- function(ACTIONet.out, variables, rand_perm = 100, num_shuffles = 10000) {
+    if (is.igraph(ACTIONet.out)) 
+        ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
+    
+    nV = length(V(ACTIONet))
+    G = get.adjacency(ACTIONet, attr = "weight")
+    
+    Enrichment = computeAutocorrelation(G, as.matrix(variables), rand_perm, num_shuffles)
+    
+    return(Enrichment)
+}
+
+
+assess.categorical.autocorrelation <- function(ACTIONet.out, labels) {
+    A = as(ACTIONet.out$build.out$ACTIONet, "dgTMatrix")
+    
+    n = length(labels)
+    counts = table(labels)
+    categoties = as.numeric(names(counts))
+    
+    pvec = as.vector(counts)/n
+    
+    k = length(pvec)
+    
+    w = A@x
+    s0 = sum(w)
+    s1 = sum(4 * w^2)/2
+    s2 = sum((colSums(A) + rowSums(A))^2)
+    
+    m1.rawphi = (s0/(n * (n - 1))) * (n^2 * k * (2 - k) - n * sum(1/pvec))
+    
+    Q1 = sum(1/pvec)
+    Q2 = sum(1/pvec^2)
+    Q3 = sum(1/pvec^3)
+    Q22 = sum((1/pvec) %*% t(1/pvec))
+    E1 = (n^2 * Q22 - n * Q3)/(n * (n - 1))
+    E2 = 4 * n^3 * Q1 - 4 * n^3 * k * Q1 + n^3 * k^2 * Q1 - 2 * (2 * n^2 * Q2 - n^2 * k * Q2) + 2 * n * Q3 - n^2 * Q22
+    E2 = E2/(n * (n - 1) * (n - 2))
+    
+    A1 = 4 * n^4 * k^2 - 4 * n^4 * k^3 + n^4 * k^4 - (2 * n^3 * k * Q1 - n^3 * k^2 * Q1)
+    A2 = 4 * n^3 * Q1 - 4 * n^3 * k * Q1 + n^3 * k^2 * Q1 - (2 * n^2 * Q2 - n^2 * k * Q2)
+    Apart = A1 - 2 * A2
+    
+    B1 = 4 * n^3 * Q1 - 4 * n^3 * k * Q1 + n^3 * k^2 * Q1 - (2 * n^2 * Q2 - n^2 * k * Q2)
+    B2 = 2 * n^2 * Q2 - n^2 * k * Q2 - n * Q3
+    B3 = n^2 * Q22 - n * Q3
+    Bpart = B1 - B2 - B3
+    
+    C1 = 2 * n^3 * k * Q1 - n^3 * k^2 * Q1 - n^2 * Q22
+    C2 = 2 * n^2 * Q2 - n^2 * k * Q2 - n * Q3
+    Cpart = C1 - 2 * C2
+    
+    E3 = (Apart - 2 * Bpart - Cpart)/(n * (n - 1) * (n - 2) * (n - 3))
+    
+    m2.rawphi = s1 * E1 + (s2 - 2 * s1) * E2 + (s0^2 - s2 + s1) * E3
+    
+    v_i = v[A@i + 1]
+    v_j = v[A@j + 1]
+    
+    p_i = pvec[match(v_i, categoties)]
+    p_j = pvec[match(v_j, categoties)]
+    
+    rawphi = sum(w * (2 * (v_i == v_j) - 1)/(p_i * p_j))
+    
+    mean.rawphi = m1.rawphi
+    var.rawphi = m2.rawphi - mean.rawphi^2
+    phi.z = (rawphi - mean.rawphi)/sqrt(var.rawphi)
+    phi.logPval = -log10(pnorm(phi.z, lower.tail = FALSE))
+    
+    return(list(z = phi.z, logPval = phi.logPval, phi = rawphi))
+}
+
+
+geneset.enrichment.gProfiler <- function(genes, top.terms = 10, col = "tomato", organism = "hsapiens", category = "GO:BP") {
+    require(gProfileR)
+    require(ggpubr)
+    
+    terms = gprofiler(genes, ordered_query = FALSE, hier_filtering = "none", exclude_iea = FALSE, correction_method = "fdr", src_filter = c(category), 
+        organism = organism)
+    
+    
+    terms$logPval = -log10(terms$p.value)
+    
+    
+    too.long = which(sapply(terms$term.name, function(x) stringr::str_length(x)) > 50)
+    terms = terms[-too.long, ]
+    
+    terms = terms[order(terms$logPval, decreasing = TRUE), ]
+    
+    
+    p = ggbarplot(terms[1:min(top.terms, sum(terms$logPval > 2)), ], x = "term.name", y = "logPval", sort.val = "asc", orientation = "horiz", 
+        fill = col, xlab = "", ylab = "") + geom_hline(yintercept = -log10(0.05), col = "gray", lty = 2)
+    
+    plot(p)
+    
+    return(p)
+}
+
+
+
+archetype.geneset.enrichment <- function(ACTIONet.out, genesets, min.size = 3, max.size = 500, min.enrichment = 1, genes.subset = NULL, core = T, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
+    if (is.matrix(ACTIONet.out) | is.sparseMatrix(ACTIONet.out)) {
+        DE.profile = ACTIONet.out
+    } else {        
+		if(core == T) {
+			if (("unification.out" %in% names(ACTIONet.out))) {
+				print("Using unification.out$DE.core (merged archetypes)")
+				DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core))
+			} else {
+				print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+				return()
+			}
+		} else {
+			if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
+				print("Using archetype.differential.signature (all archetypes)")
+				DE.profile = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
+			} else {
+				print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+				return()
+			}
+		}                  
+    }
+    
+    if (is.null(rownames(DE.profile))) {
+        print("Rows of the DE profile have to be named with genes.")
+    }
+    
+    require(Matrix)
+    if (is.matrix(genesets) | is.sparseMatrix(genesets)) {    
+		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
+	}
+	ind.mat = as(sapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)), "sparseMatrix")
+	rownames(ind.mat) = rownames(DE.profile)
+    
+    # prune annotations
+    cs = Matrix::colSums(ind.mat)
+    mask = (min.size <= cs) & (cs <= max.size)
+    ind.mat = ind.mat[, mask]
+    #rs = Matrix::rowSums(ind.mat)
+    #ind.mat = ind.mat[rs > 0, ]
+    
+    
+    # prune enrichment profile DE.profile[DE.profile < min.enrichment] = 0 rs = Matrix::rowSums(DE.profile) DE.profile = DE.profile[rs
+    # > 0, ]
+    
+    common.genes = intersect(rownames(DE.profile), rownames(ind.mat))
+    if (!is.null(genes.subset)) {
+        common.genes = intersect(common.genes, genes.subset)
+    }    
+	filtered.genes = rownames(DE.profile)[grep(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
+	common.genes = setdiff(common.genes, filtered.genes)
+	
+    
+    idx = match(common.genes, rownames(DE.profile))
+    DE.profile = DE.profile[idx, ]
+    
+    idx = match(common.genes, rownames(ind.mat))
+    X = ind.mat[idx, ]
+    
+    # Normalize scores to avoid heavy-tail side-effect(s) pos.scores = DE.profile pos.scores[pos.scores < 0] = 0
+    A = DE.profile #/max(DE.profile)
+    
+    
+    p_c = Matrix::colMeans(X)
+    Obs = as.matrix(Matrix::t(X) %*% A)
+    
+    
+    Exp = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A)))
+    Nu = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A^2)))
+    
+    Lambda = Obs - Exp
+    
+    a = apply(A, 2, max)
+    ones = array(1, dim = dim(Lambda)[1])
+    
+    
+    logPvals = Lambda^2/(2 * (Nu + (ones %*% Matrix::t(a)) * Lambda/3))
+    
+    rownames(logPvals) = colnames(ind.mat)
+    colnames(logPvals) = colnames(DE.profile)
+    
+    logPvals[Lambda < 0] = 0
+    logPvals[is.na(logPvals)] = 0
+    
+    logPvals = logPvals/log(10)
+    
+    
+    return(logPvals)
+}
+
+assess.gene.specificity <- function(sce, X) {
+    A = as(sce@assays[["logcounts"]], "sparseMatrix")
+    
+    B = A
+    B@x = rep(1, length(B@x))
+    
+    p_r = Matrix::rowMeans(A)
+    p_r_bin = Matrix::rowMeans(B)
+    alpha = p_r/p_r_bin
+    
+    p_c = Matrix::colMeans(B)
+    rho = mean(p_c)
+    beta = Matrix::t(p_c)/rho
+    
+    Gamma = apply(X, 1, function(x) x * beta)
+    
+    Obs = A %*% t(X)
+    Exp = p_r %*% t(Matrix::colSums(Gamma))
+    Nu = p_r %*% t(Matrix::colSums(Gamma^2))
+    Lambda = Obs - Exp
+    
+    a = apply(Gamma, 2, max)
+    
+    logPvals = (Lambda^2)/(2 * (Nu + Lambda %*% diag(a)/3))
+    
+    logPvals[Lambda < 0] = 0
+    logPvals[is.na(logPvals)] = 0
+    
+    logPvals = logPvals/log(10)
+    
+    rownames(logPvals) = rownames(sce)
+    
+    return(logPvals)
+}
+
+
+assess.gene.specificity.pairwise <- function(sce, H, phenotype, case.pheno) {
+    phenotype.vec = as.numeric(phenotype == case.pheno)
+    
+    A = sce@assays[["logcounts"]]
+    
+    A.ctl = A[, phenotype != case.pheno]
+    p_r.ctl = Matrix::rowMeans(A.ctl)
+    
+    A.pheno = A[, phenotype == case.pheno]
+    H.pheno = H[, phenotype == case.pheno]
+    Pheno.Obs = A.pheno %*% t(H.pheno)
+    
+    B.pheno = A.pheno
+    B.pheno@x = rep(1, length(B.pheno@x))
+    p_c = Matrix::colMeans(B.pheno)
+    rho = mean(p_c)
+    beta = Matrix::t(p_c)/rho
+    Gamma = apply(H.pheno, 1, function(x) x * beta)
+    
+    Ctl.Exp = p_r.ctl %*% t(Matrix::colSums(Gamma))
+    Nu = p_r.ctl %*% t(Matrix::colSums(Gamma^2))
+    a = apply(Gamma, 2, max)
+    
+    
+    Lambda = Pheno.Obs - Ctl.Exp
+    
+    
+    logPvals.Upper = (Lambda^2)/(2 * (Nu + Lambda %*% diag(a)/3))
+    logPvals.Lower = (Lambda^2)/(2 * Nu)
+    
+    
+    
+    logPvals.Upper[Lambda < 0] = 0
+    logPvals.Lower[Lambda > 0] = 0
+    
+    logPvals.Upper[is.na(logPvals.Upper)] = 0
+    logPvals.Lower[is.na(logPvals.Lower)] = 0
+    
+    rownames(logPvals.Upper) = rownames(logPvals.Lower) = rownames(sce)
+    
+    logPvals.Upper = logPvals.Upper/log(10)
+    logPvals.Lower = logPvals.Lower/log(10)
+    
+    res = list(Up = logPvals.Upper, Down = logPvals.Lower)
+    
+    return(res)
+}
+
+
+compute.archetype.gene.specificity <- function(ACTIONet.out, sce, mode = "sparse") {
+    if (mode == "sparse") {
+        X = t(ACTIONet.out$reconstruct.out$C_stacked)
+    } else {
+        X = ACTIONet.out$reconstruct.out$H_stacked
+    }
+    
+    logPvals = assess.gene.specificity(sce, X)
+    
+    colnames(logPvals) = colnames(ACTIONet.out$reconstruct.out$C_stacked)
+    logPvals = as.data.frame(as.matrix(logPvals))
+    
+    return(logPvals)
+}
+
+
+compute.cluster.gene.specificity <- function(sce, clusters) {
+    idx = match(names(clusters), sce$cell.hashtag)
+    if (sum(is.na(idx)) > 0) {
+        print("names of cluster object should match the cell.hashtag in sce object")
+        return()
+    }
+    sce = sce[, idx]
+    
+    if (!is.factor(clusters)) 
+        clusters = factor(clusters)
+    
+    X = t(sapply(sort(unique(clusters)), function(i) as.numeric(clusters == i)))
+    
+    
+    logPvals = assess.gene.specificity(sce, X)
+    
+    colnames(logPvals) = levels(clusters)
+    logPvals = as.data.frame(as.matrix(logPvals))
+    
+    return(logPvals)
+}
+
+
+find.cluster.markers <- function(sce, clusters, direction = "up", batch = NULL, test.type = "ttest") {
+    if (test.type == "ttest") {
+        tbl = scran::pairwiseTTests(sce@assays[["logcounts"]], clusters = clusters, direction = direction, block = batch)
+        tbl.out <- combineMarkers(tbl$statistics, tbl$pairs, effect = "logFC")
+    } else if (test.type == "wilcoxon") {
+        tbl = scran::pairwiseWilcox(sce@assays[["logcounts"]], clusters = clusters, direction = direction, block = batch)
+        tbl.out <- combineMarkers(tbl$statistics, tbl$pairs, effect = "overlap")
+    } else {
+        print("test.type should be either 'ttest' or 'wilcox'")
+        return()
+    }
+    output = lapply(tbl.out, function(X) as.data.frame(X))
+    
+    return(output)
+}
+
+
+find.phenotype.associated.genes <- function(sce, phenotypes, individuals = NULL, clusters = NULL, batch = NULL, direction = "up", case.condition = 1) {
+    require(scran)
+    
+    conditions = as.character(unique(phenotypes))
+    if (length(conditions) != 2) {
+        print("phenotype should be a vector with two conditions (case/control)")
+    }
+    names(conditions) = conditions
+    
+    
+    if (is.null(clusters)) {
+        IDX = list(1:ncol(sce))
+        names(IDX) = c("all")
+    } else {
+        IDX = split(1:ncol(sce), clusters)
+    }
+    
+    DE.stats = vector("list", length(IDX))
+    names(DE.stats) = names(IDX)
+    
+    for (Type in names(IDX)) {
+        R.utils::printf("Processing %s\n", Type)
+        idx = IDX[[Type]]
+        sub.sce = sce[, idx]
+        sub.pheno = phenotypes[idx]
+        
+        if (is.null(individuals)) {
+            
+            tbl = find.cluster.markers(sub.sce, sub.pheno, direction, batch, test.type = "ttest")
+            X = tbl[[conditions[[case.condition]]]][, 2:4]
+            colnames(X) = c("pVal", "FDR", "logFC")
+            X = X[order(X$pVal), ]
+            
+            DE.stats[[Type]] = X
+        } else {
+            sub.individuals = individuals[idx]
+            
+            sub.case.mask = sub.pheno == conditions[case.condition]
+            sub.sce.case = sub.sce[, sub.case.mask]
+            sub.sce.ctl = sub.sce[, !sub.case.mask]
+            
+            sub.individuals.case = sub.individuals[sub.case.mask]
+            sub.individuals.ctl = sub.individuals[!sub.case.mask]
+            
+            IDX.case = split(1:length(sub.individuals.case), sub.individuals.case)
+            IDX.case = IDX.case[sapply(IDX.case, length) > 10]
+            
+            IDX.ctl = split(1:length(sub.individuals.ctl), sub.individuals.ctl)
+            IDX.ctl = IDX.ctl[sapply(IDX.ctl, length) > 10]
+            
+            R.utils::printf("\tCombining %s cases and %s controls\n", length(IDX.case), length(IDX.ctl))
+            
+            col.id = 1
+            logFC.mat = matrix(0, nrow = nrow(sce), ncol = length(IDX.case) * length(IDX.ctl))
+            Pval.mat = matrix(1, nrow = nrow(sce), ncol = length(IDX.case) * length(IDX.ctl))
+            rownames(Pval.mat) = rownames(logFC.mat) = rownames(sce)
+            for (case.id in 1:length(IDX.case)) {
+                sub.sce1 = sub.sce.case[, IDX.case[[case.id]]]
+                for (ctl.id in 1:length(IDX.ctl)) {
+                  sub.sce2 = sub.sce.ctl[, IDX.ctl[[ctl.id]]]
+                  
+                  joint.labels = c(rep(conditions[[case.condition]], ncol(sub.sce1)), rep(setdiff(conditions, conditions[[case.condition]]), 
+                    ncol(sub.sce2)))
+                  joint.sce = cbind(sub.sce1, sub.sce2)
+                  
+                  tbl = find.cluster.markers(joint.sce, joint.labels, direction, batch, test.type = "ttest")
+                  
+                  X = tbl[[conditions[[case.condition]]]]
+                  
+                  logFC.mat[, col.id] = X[match(rownames(sce), rownames(X)), grep("logFC", colnames(X))]
+                  Pval.mat[, col.id] = X[match(rownames(sce), rownames(X)), grep("val", colnames(X))]
+                  
+                  col.id = col.id + 1
+                }
+            }
+            combined.logFC = Matrix::rowSums(logFC.mat)
+            logFC.std = apply(logFC.mat, 1, sd)
+            
+            Pval.mat[Pval.mat < 1e-300] = 1e-300
+            combined.pVal = ncol(Pval.mat)/Matrix::rowSums(1/Pval.mat)  # The harmonic mean p-value for combining dependent tests
+            combined.FDR = p.adjust(combined.pVal, method = "fdr")
+            
+            X = data.frame(combined.pVal, combined.FDR, combined.logFC, logFC.std)
+            colnames(X) = c("pVal", "FDR", "logFC", "logFC.std")
+            rownames(X) = rownames(sce)
+            
+            X = X[order(X$pVal), ]
+            
+            DE.stats[[Type]] = X
+        }
+    }
+    
+    return(DE.stats)
+}
+
+
+assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
+    require(viper)
+	if(core == T) {
+		if (("unification.out" %in% names(ACTIONet.out))) {
+			print("Using unification.out$DE.core (merged archetypes)")
+			archetype.panel = as.matrix(log1p(ACTIONet.out$unification.out$DE.core))
+		} else {
+			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+			return()
+		}
+	} else {
+		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
+			print("Using archetype.differential.signature (all archetypes)")
+			archetype.panel = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
+		} else {
+			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+			return()
+		}
+	}   
+	
+    
+    TF_activities <- viper::viper(eset = archetype.panel, regulon = inRegulon, nes = T, method = "none", minsize = 4, eset.filter = F)
+    colnames(TF_activities) <- colnames(archetype.panel)
+    
+    return(TF_activities)
+}
+
