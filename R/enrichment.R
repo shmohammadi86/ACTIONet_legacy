@@ -202,7 +202,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 		print("Please run compute.annotations.feature.specificity() first")
 		return()		
 	}
-	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile)
+	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
 	
     if (is.null(rownames(DE.profile))) {
         print("Rows of the DE profile have to be named with genes.")
@@ -384,7 +384,7 @@ compute.archetype.feature.specificity <- function(ACTIONet.out, sce, mode = "spa
         X = ACTIONet.out$reconstruct.out$H_stacked
     }
     
-    logPvals = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
+    diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
 
 	R.utils::printf("done\n")	
     
@@ -405,12 +405,10 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
     X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
     
     
-    logPvals = assess.feature.specificity(sce, X)
-    
-    colnames(logPvals) = levels(clusters)
-    logPvals = as.data.frame(as.matrix(logPvals))
+    diff.sce = assess.feature.specificity(sce, X)
+
 	
-	ACTIONet.out$annotations[[idx]]$DE.profile = logPvals    
+	ACTIONet.out$annotations[[idx]]$DE.profile = diff.sce
 	
     return(ACTIONet.out)
 }
