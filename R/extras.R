@@ -123,24 +123,6 @@ HGT_tail <- function(population.size, success.count, sample.size, observed.succe
 
 
 
-arch.init.clusters <- function(ACTIONet.out, update = TRUE, thread_no = 8) {
-    # U = ACTIONet.out$reconstruct.out$C_stacked[, ACTIONet.out$core.out$core.archs]
-    U = t(ACTIONet.out$reconstruct.out$H_stacked[ACTIONet.out$core.out$core.archs, ])
-    U.smoothed = (batchPR(ACTIONet.out$build.out$ACTIONet, U, thread_no = thread_no))
-    # U.smoothed = apply(U.smoothed, 2, function(x) x / max(x))
-    
-    initial.clusters = apply(U.smoothed, 1, which.max)
-    
-    if (update) {
-        initial.clusters.updated = update.cell.labels(ACTIONet.out, initial.clusters)
-    } else {
-        initial.clusters.updated = initial.clusters
-    }
-    initial.clusters.updated = match(initial.clusters.updated, sort(unique(initial.clusters.updated)))
-    
-    return(initial.clusters.updated)
-}
-
 construct.archetype.signature.profile <- function(sce, ACTIONet.out) {
     require(SingleCellExperiment)
     

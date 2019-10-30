@@ -385,7 +385,7 @@ annotate.clusters.using.markers <- function(sce, clusters, marker.genes, rand.sa
     }
     
     print("Computing signifcance of genes in cluster")
-    X = compute.cluster.gene.specificity(sce, clusters)
+    X = compute.annotations.gene.specificity(sce, clusters)
     if (is.null(X)) {
         print("Cannot compute cluster DE. Returning")
         return()
@@ -526,10 +526,34 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_
     Labels = factor(Labels, levels = L)
     Labels.conf = apply(Z, 1, max)
     
-    out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, imputed.marker.expression = imputed.marker.expression)
     
-    return(out.list)
+    names(Labels) = ACTIONet.out$log$cells   
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.using.markers", Enrichment = Z)
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+	
+
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}	
+
+    return(ACTIONet.out)    
 }
+
 
 map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T) {
     if( (core == T) | (nrow(Enrichment) == nrow(ACTIONet.out$unification.out$H.core)) ) {
@@ -570,31 +594,48 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     return(cell.Enrichment.mat)
 }
 	
-annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T) {
+annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, ignore.DE = FALSE) {
     cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment)
     
     cell.Labels = colnames(cell.Enrichment.mat)[apply(cell.Enrichment.mat, 1, which.max)]
     cell.Labels.factor = factor(cell.Labels)
     cell.Labels.conf = apply(cell.Enrichment.mat, 1, max)
     
-    out.list = list(Labels = cell.Labels.factor, Labels.confidence = cell.Labels.conf, Enrichment = cell.Enrichment.mat)
-    
-    return(out.list)
+
+    names(cell.Labels.factor) = ACTIONet.out$log$cells   
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = cell.Labels.factor, Labels.confidence = cell.Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.from.archetype.enrichment", Enrichment = cell.Enrichment.mat)
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+	
+
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}	
+
+    return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, post.update = FALSE, update.LFR.threshold = 2) {
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000, ignore.DE = FALSE) {
     arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
     
     Enrichment = arch.annot$Enrichment
-    cell.annot = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T)
+    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name, ignore.DE = ignore.DE)
 
-    annot.out = list(archetype.annotations = arch.annot, cell.annotations = cell.annot, Enrichment = Enrichment)
-    
-    if (post.update == TRUE) {
-        print("Updating cell annotations")
-        annot.out$updated.labels = update.cell.labels(ACTIONet.out, annot.out$cell.annotations$Labels, update.LFR.threshold = update.LFR.threshold)
-    }
-    return(annot.out)
+    return(ACTIONet.out)
 }
 
 
@@ -640,3 +681,49 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", min.score = 3,
 	res = list(ranked.celltypes = df, Enrichment = CellMarker.Enrichment)
 	return(res)
 }
+
+highlight.annotations <- function(ACTIONet.out, annotation.tag = NULL, z.threshold = -1) {
+    if (is.null(Labels)) {
+        clusters = cluster.ACTIONet.highRes(ACTIONet.out)
+    } else {
+        clusters = as.numeric(factor(Labels))
+    }
+    
+    IDX = split(1:length(clusters), clusters)
+    cluster.cell.connectivity = vector("list", length(IDX))
+    cluster.cell.connectivity.smoothed = vector("list", length(IDX))
+    cluster.pruned.cells = vector("list", length(IDX))
+    
+    for (i in 1:length(IDX)) {
+        idx = IDX[[i]]
+        
+        sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
+        sub.cn = coreness(sub.ACTIONet)
+        
+        if (mad(sub.cn) > 0) {
+            z = (sub.cn - median(sub.cn))/mad(sub.cn)
+        } else if (sd(sub.cn) > 0) {
+            z = as.numeric(scale(sub.cn))
+        } else {
+            z = (as.numeric(rep(0, length(idx))))
+        }
+        cluster.cell.connectivity[[i]] = z
+        
+        cluster.pruned.cells[[i]] = idx[z < z.threshold]
+    }
+    all.cell.connectivity.scores = as.numeric(sparseVector(unlist(cluster.cell.connectivity), unlist(IDX), length(clusters)))
+    all.pruned.cells = sort(unique(unlist(cluster.pruned.cells)))
+    
+    if (length(all.pruned.cells) > 0) {
+        is.pruned = as.numeric(sparseVector(1, all.pruned.cells, length(clusters)))
+    } else {
+        is.pruned = rep(0, ncol(sce))
+    }
+    
+    
+    out = list(connectivity.scores = all.cell.connectivity.scores, pruned.cells = all.pruned.cells, cluster.connectivity.scores = cluster.cell.connectivity, 
+        cluster.pruned.cells = cluster.pruned.cells, is.pruned = is.pruned)
+    
+    return(out)
+}
+

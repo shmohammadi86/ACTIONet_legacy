@@ -98,7 +98,7 @@ geneset.enrichment.gProfiler <- function(genes, top.terms = 10, col = "tomato", 
 
 
 
-archetype.geneset.enrichment <- function(ACTIONet.out, genesets, min.size = 3, max.size = 500, min.enrichment = 1, genes.subset = NULL, core = T, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
+geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, max.size = 500, min.enrichment = 1, genes.subset = NULL, core = T, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
     if (is.matrix(ACTIONet.out) | is.sparseMatrix(ACTIONet.out)) {
         DE.profile = ACTIONet.out
     } else {        
@@ -187,6 +187,90 @@ archetype.geneset.enrichment <- function(ACTIONet.out, genesets, min.size = 3, m
     
     return(logPvals)
 }
+
+
+geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", core = T) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	
+	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
+		print("Please run compute.annotations.gene.specificity() first")
+		return()		
+	}
+	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile)
+	
+    if (is.null(rownames(DE.profile))) {
+        print("Rows of the DE profile have to be named with genes.")
+    }
+    
+    require(Matrix)
+    if (is.matrix(genesets) | is.sparseMatrix(genesets)) {    
+		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
+	}
+	ind.mat = as(sapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)), "sparseMatrix")
+	rownames(ind.mat) = rownames(DE.profile)
+    
+    # prune annotations
+    cs = Matrix::colSums(ind.mat)
+    mask = (min.size <= cs) & (cs <= max.size)
+    ind.mat = ind.mat[, mask]
+    #rs = Matrix::rowSums(ind.mat)
+    #ind.mat = ind.mat[rs > 0, ]
+    
+    
+    # prune enrichment profile DE.profile[DE.profile < min.enrichment] = 0 rs = Matrix::rowSums(DE.profile) DE.profile = DE.profile[rs
+    # > 0, ]
+    
+    common.genes = intersect(rownames(DE.profile), rownames(ind.mat))
+    if (!is.null(genes.subset)) {
+        common.genes = intersect(common.genes, genes.subset)
+    }    
+	filtered.genes = rownames(DE.profile)[grep(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
+	common.genes = setdiff(common.genes, filtered.genes)
+	
+    
+    idx = match(common.genes, rownames(DE.profile))
+    DE.profile = DE.profile[idx, ]
+    
+    idx = match(common.genes, rownames(ind.mat))
+    X = ind.mat[idx, ]
+    
+    # Normalize scores to avoid heavy-tail side-effect(s) pos.scores = DE.profile pos.scores[pos.scores < 0] = 0
+    A = DE.profile #/max(DE.profile)
+    
+    
+    p_c = Matrix::colMeans(X)
+    Obs = as.matrix(Matrix::t(X) %*% A)
+    
+    
+    Exp = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A)))
+    Nu = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A^2)))
+    
+    Lambda = Obs - Exp
+    
+    a = apply(A, 2, max)
+    ones = array(1, dim = dim(Lambda)[1])
+    
+    
+    logPvals = Lambda^2/(2 * (Nu + (ones %*% Matrix::t(a)) * Lambda/3))
+    
+    rownames(logPvals) = colnames(ind.mat)
+    colnames(logPvals) = colnames(DE.profile)
+    
+    logPvals[Lambda < 0] = 0
+    logPvals[is.na(logPvals)] = 0
+    
+    logPvals = logPvals/log(10)
+    
+    
+    return(logPvals)
+}
+
 
 assess.gene.specificity <- function(sce, X) {
     A = as(sce@assays[["logcounts"]], "sparseMatrix")
@@ -289,26 +373,27 @@ compute.archetype.gene.specificity <- function(ACTIONet.out, sce, mode = "sparse
 }
 
 
-compute.cluster.gene.specificity <- function(sce, clusters) {
-    idx = match(names(clusters), sce$cell.hashtag)
-    if (sum(is.na(idx)) > 0) {
-        print("names of cluster object should match the cell.hashtag in sce object")
-        return()
-    }
-    sce = sce[, idx]
+compute.annotations.gene.specificity <- function(ACTIONet.out, sce, annotation.name) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	Labels = factor(ACTIONet.out$annotations[[idx]]$Labels)
     
-    if (!is.factor(clusters)) 
-        clusters = factor(clusters)
-    
-    X = t(sapply(sort(unique(clusters)), function(i) as.numeric(clusters == i)))
+    X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
     
     
     logPvals = assess.gene.specificity(sce, X)
     
     colnames(logPvals) = levels(clusters)
     logPvals = as.data.frame(as.matrix(logPvals))
-    
-    return(logPvals)
+	
+	ACTIONet.out$annotations[[idx]]$DE.profile = logPvals    
+	
+    return(ACTIONet.out)
 }
 
 

@@ -70,4 +70,4 @@
 #'   A list of gene symbols for different tissues/cell-types
 #' 
 #' @source \url{http://compbio.mit.edu/ACTIONet/}
-"curatedHumanMarkers"
+"curatedMarkers_human"

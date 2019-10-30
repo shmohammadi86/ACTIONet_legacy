@@ -16,51 +16,6 @@ mark.doublet.clusters <- function(sce, clusters) {
 }
 
 
-highlight.ACTIONet <- function(ACTIONet.out, Labels = NULL, z.threshold = -1) {
-    if (is.null(Labels)) {
-        clusters = cluster.ACTIONet.highRes(ACTIONet.out)
-    } else {
-        clusters = as.numeric(factor(Labels))
-    }
-    
-    IDX = split(1:length(clusters), clusters)
-    cluster.cell.connectivity = vector("list", length(IDX))
-    cluster.cell.connectivity.smoothed = vector("list", length(IDX))
-    cluster.pruned.cells = vector("list", length(IDX))
-    
-    for (i in 1:length(IDX)) {
-        idx = IDX[[i]]
-        
-        sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
-        sub.cn = coreness(sub.ACTIONet)
-        
-        if (mad(sub.cn) > 0) {
-            z = (sub.cn - median(sub.cn))/mad(sub.cn)
-        } else if (sd(sub.cn) > 0) {
-            z = as.numeric(scale(sub.cn))
-        } else {
-            z = (as.numeric(rep(0, length(idx))))
-        }
-        cluster.cell.connectivity[[i]] = z
-        
-        cluster.pruned.cells[[i]] = idx[z < z.threshold]
-    }
-    all.cell.connectivity.scores = as.numeric(sparseVector(unlist(cluster.cell.connectivity), unlist(IDX), length(clusters)))
-    all.pruned.cells = sort(unique(unlist(cluster.pruned.cells)))
-    
-    if (length(all.pruned.cells) > 0) {
-        is.pruned = as.numeric(sparseVector(1, all.pruned.cells, length(clusters)))
-    } else {
-        is.pruned = rep(0, ncol(sce))
-    }
-    
-    
-    out = list(connectivity.scores = all.cell.connectivity.scores, pruned.cells = all.pruned.cells, cluster.connectivity.scores = cluster.cell.connectivity, 
-        cluster.pruned.cells = cluster.pruned.cells, is.pruned = is.pruned)
-    
-    return(out)
-}
-
 assess.batch.mixing <- function(ACTIONet.out, sce, batch.vec, thread_no = 8) {
     require(kBET)
     

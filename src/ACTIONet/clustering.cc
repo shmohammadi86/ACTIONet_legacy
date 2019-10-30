@@ -11,9 +11,7 @@ namespace ACTIONetcore {
 		int nE = A.n_nonzero;
 		
 		vec clusters = zeros(nV);
-		
-		printf("[signed] Clustering graph with %d vertices and %d edges (resolution = %.2f)\n", nV, nE, resolution_parameter);
-				
+						
 		igraph_t g;
 		igraph_vector_t v;
 		igraph_vector_init(&v, 2*nE);
@@ -39,7 +37,6 @@ namespace ACTIONetcore {
 		
 		CPMVertexPartition* partition;
 		if(initial_clusters.n_elem == nV) {
-			printf("\tInitializing partitions\n");
 			
 			vector<size_t> membership(nV);
 			for(int i = 0; i < nV; i++) {
@@ -73,9 +70,7 @@ namespace ACTIONetcore {
 		int nE = A.n_nonzero;
 		
 		vec clusters = zeros(nV);
-		
-		printf("[unsigned] Clustering graph with %d vertices and %d edges (resolution = %.2f)\n", nV, nE, resolution_parameter);
-				
+						
 		igraph_t g;
 		igraph_vector_t v;
 		igraph_vector_init(&v, 2*nE);
@@ -101,9 +96,7 @@ namespace ACTIONetcore {
 		
 
 		RBConfigurationVertexPartition* partition;
-		if(initial_clusters.n_elem == nV) {
-			printf("\tInitializing partitions\n");
-			
+		if(initial_clusters.n_elem == nV) {			
 			vector<size_t> membership(nV);
 			for(int i = 0; i < nV; i++) {
 				membership[i] = initial_clusters(i);

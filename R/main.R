@@ -78,6 +78,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce)
     
+    
     ACTIONet.out$log = list(genes = rownames(sce), cells = sce$cell.hashtag, time = Sys.time())
     
     return(ACTIONet.out)
@@ -266,7 +267,55 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     return(ACTIONet.out.pruned)
 }
 
-cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, post.update = FALSE, update.LFR.threshold = 1, cluster.tag = NULL, thread_no = 8) {
+update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1, ignore.DE = FALSE) {	
+	if(length(Labels) == 1) {
+		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
+		if(length(idx) == 0) {
+			R.utils::printf('Annotation %s not found\n', Labels)
+			return(ACTIONet.out)
+		}
+		
+		R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+		Labels = ACTIONet.out$annotations[[idx]]$Labels
+	}
+	
+    if(! is.null(min.cluster.size) ) {
+		print("Re-assign trivial clusters")
+		counts = table(Labels)
+		Labels[Labels %in% as.numeric(names(counts)[counts < min.cluster.size])] = NA
+		Labels = as.numeric(infer.missing.Labels(ACTIONet.out, Labels))
+	}
+	
+	print("Perform mis-label correction using label propagation algorithm")
+	Labels = correct.cell.labels(ACTIONet.out, Labels, update.LFR.threshold = update.LFR.threshold )
+
+    names(Labels) = ACTIONet.out$log$cells   
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "update.cell.annotations")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+		
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}
+		
+    return(ACTIONet.out)	
+}
+
+cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL, ignore.DE = FALSE) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 		return(ACTIONet.out)
@@ -274,33 +323,33 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, post.update = FAL
 	clusters = ACTIONet.out$unification.out$assignments.core
 	clusters = factor(clusters, levels = sort(unique(clusters)))
 	
-    if (post.update == TRUE) {
-        print("Perform cluster clean-up")
-        clusters = update.cell.labels(ACTIONet.out, clusters, update.LFR.threshold = update.LFR.threshold )
-		#clusters = factor(clusters, levels = 1:max(clusters))
-    }		
-    
-    names(clusters) = ACTIONet.out$log$cells     
-       
-	if(!is.null(cluster.tag)) {
-		Tag = sprintf('%s', cluster.tag)
-	} else {
-		Tag = sprintf('(%s)', as.character(Sys.time()))
-	}	
-	if('clusters' %in% names(ACTIONet.out)) {
-		if(Tag %in% names(ACTIONet.out$clusters)) {
-			ACTIONet.out$clusters = ACTIONet.out$clusters[-match(Tag, names(ACTIONet.out$clusters))]			
-		}
-		cmd = sprintf("ACTIONet.out$clusters = c(ACTIONet.out$clusters, list(\"%s\" = clusters))", Tag)
-	} else {
-		cmd = sprintf("ACTIONet.out$clusters = list(\"%s\" = clusters)", Tag)
+    names(clusters) = ACTIONet.out$log$cells   
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
 	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = clusters, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet.using.decomposition")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
 		
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}
+			
     return(ACTIONet.out)
 }
 
-cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init = TRUE, min.cluster.size = -1, post.update = FALSE, update.LFR.threshold = 1, cluster.tag = NULL, thread_no = 8) {
+cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init = TRUE, annotation.name = NULL, ignore.DE = FALSE) {
     if (arch.init == TRUE) {
 		if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
@@ -314,35 +363,28 @@ cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init
         clusters = factor(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0))
     }
     
-    if(min.cluster.size > 0) {
-		print("Re-assign trivial clusters")
-		counts = table(clusters)
-		clusters[clusters %in% as.numeric(names(counts)[counts < min.cluster.size])] = NA
-		clusters = as.numeric(infer.missing.Labels(ACTIONet.out, clusters))
-	}
-    
-    if (post.update == TRUE) {
-        print("Perform cluster clean-up")
-        clusters = update.cell.labels(ACTIONet.out, clusters, update.LFR.threshold = update.LFR.threshold )
-    }
-    
     names(clusters) = ACTIONet.out$log$cells   
-
-	if(!is.null(cluster.tag)) {
-		Tag = sprintf('%s', cluster.tag)
-	} else {
-		Tag = sprintf('(%s)', as.character(Sys.time()))
-	}	
-	if('clusters' %in% names(ACTIONet.out)) {
-		if(Tag %in% names(ACTIONet.out$clusters)) {
-			ACTIONet.out$clusters = ACTIONet.out$clusters[-match(Tag, names(ACTIONet.out$clusters))]			
-		}
-		cmd = sprintf("ACTIONet.out$clusters = c(ACTIONet.out$clusters, list(\"%s\" = clusters))", Tag)
-	} else {
-		cmd = sprintf("ACTIONet.out$clusters = list(\"%s\" = clusters)", Tag)
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
 	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = clusters, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
 
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}
 		
     return(ACTIONet.out)
 }
@@ -481,7 +523,7 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     return(imputed.gene.expression)
 }
 
-update.cell.labels <- function(ACTIONet.out, Labels, max.iter = 3, double.stochastic = FALSE, update.LFR.threshold = 3) {
+correct.cell.labels <- function(ACTIONet.out, Labels, max.iter = 3, double.stochastic = FALSE, update.LFR.threshold = 3) {
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
@@ -626,3 +668,45 @@ infer.missing.Labels <- function(ACTIONet.out, Labels, double.stochastic = FALSE
     return(Labels)
 }
 
+
+add.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, ignore.DE = FALSE) {	
+	if(is.null(annotation.name)) {
+		print("You need to provide a name for the annotation")
+		return(ACTIONet.out)
+	}
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+    names(Labels) = ACTIONet.out$log$cells   	
+
+	time.stamp = as.character(Sys.time())
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "add.cell.annotations")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+
+	if( !ignore.DE ) {
+		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
+		eval(parse(text=cmd))
+	}
+				
+    return(ACTIONet.out)	
+}
+
+extract.all.annotations <- function(ACTIONet.out) {
+	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(X) {
+		Labels = rep(NA, length(ACTIONet.out$log$cells))
+		
+		common.cells = intersect(ACTIONet.out$log$cells, X$cells)
+		idx1 = match(common.cells, ACTIONet.out$log$cells)
+		idx2 = match(common.cells, X$cells)
+		Labels[idx1] = as.character((X$Labels[idx2]))
+		Labels = factor(Labels)
+	})))
+	
+	return(annotations.df)
+}

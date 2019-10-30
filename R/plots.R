@@ -35,7 +35,7 @@ gen.colors <- function(Pal, color.no, plot.cols) {
 }
 
 
-plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA, size.attr = NA, node.size = 1.5, trans.fact = 2, trans.z.threshold = -1, 
+plot.ACTIONet.igraph <- function(ACTIONet.out, labels = NA, transparency.attr = NA, size.attr = NA, node.size = 1.5, trans.fact = 2, trans.z.threshold = -1, 
     size.fact = 1, CPal = ACTIONet.color.bank, legend.pos = "bottomright", suppress.legend = FALSE) {
     require(igraph)
     require(colorspace)
@@ -64,10 +64,10 @@ plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.att
     
     
     Annot = NA
-    if (is.numeric(color.attr)) {
-        color.attr = as.character(color.attr)
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    if (is.numeric(labels)) {
+        labels = as.character(labels)
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
@@ -75,8 +75,8 @@ plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.att
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.factor(color.attr)) {
-        Annot = levels(color.attr)
+    } else if (is.factor(labels)) {
+        Annot = levels(labels)
         
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
@@ -84,9 +84,9 @@ plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.att
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.character(color.attr)) {
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    } else if (is.character(labels)) {
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
         } else {
@@ -95,7 +95,7 @@ plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.att
         names(Pal) = Annot
     }
     if (length(Annot) > 1) {
-        vCol = Pal[color.attr]
+        vCol = Pal[labels]
     } else {
         vCol = V(ACTIONet)$color
     }
@@ -151,7 +151,7 @@ plot.ACTIONet.igraph <- function(ACTIONet.out, color.attr = NA, transparency.att
     
 }
 
-plot.ACTIONet.3D <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA, size.attr = NA, node.size = 0.2, CPal = ACTIONet.color.bank) {
+plot.ACTIONet.3D <- function(ACTIONet.out, labels = NA, transparency.attr = NA, size.attr = NA, node.size = 0.2, CPal = ACTIONet.color.bank) {
     require(ggplot2)
     require(ggpubr)
     require(threejs)
@@ -163,10 +163,10 @@ plot.ACTIONet.3D <- function(ACTIONet.out, color.attr = NA, transparency.attr = 
     coor = cbind(V(ACTIONet)$x3D, V(ACTIONet)$y3D, V(ACTIONet)$z3D)
     
     Annot = NA
-    if (is.numeric(color.attr)) {
-        color.attr = as.character(color.attr)
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    if (is.numeric(labels)) {
+        labels = as.character(labels)
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
@@ -174,17 +174,17 @@ plot.ACTIONet.3D <- function(ACTIONet.out, color.attr = NA, transparency.attr = 
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.factor(color.attr)) {
-        Annot = levels(color.attr)
+    } else if (is.factor(labels)) {
+        Annot = levels(labels)
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
         } else {
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.character(color.attr)) {
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    } else if (is.character(labels)) {
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
         } else {
@@ -193,7 +193,7 @@ plot.ACTIONet.3D <- function(ACTIONet.out, color.attr = NA, transparency.attr = 
         names(Pal) = Annot
     }
     if (length(Annot) > 1) {
-        vCol = as.character(Pal[color.attr])
+        vCol = as.character(Pal[labels])
     } else {
         vCol = V(ACTIONet)$color
     }
@@ -351,10 +351,13 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, top.genes = 7
     
     node.data$type = labels
     node.data$vCol = vCol
-    network <- plot_ly(node.data, x = ~x, y = ~y, opacity = opacity, marker = list(color = ~vCol, size = ~size, opacity = 1, 
-        alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = "rgb(0, 0, 0)")), text = node.annotations, mode = "markers", 
-        type = "scatter", hoverinfo = "text")
-    
+    if(is.na(Annot)) {
+		network <- plot_ly(node.data, x = ~x, y = ~y, opacity = opacity, marker = list(color = ~vCol, size = ~size, opacity = 1, 
+			alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = "rgb(0, 0, 0)")), text = node.annotations, mode = "markers", 
+			type = "scatter", hoverinfo = "text")
+	} else {
+		network <- plot_ly(node.data, x = ~x, y = ~y, opacity = opacity, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1.0, alpha = 1, line = list(width = 0.1*node.size, alpha = 0.5, color = 'rgb(0, 0, 0)')), text = node.annotations, mode = "markers", type = 'scatter', hoverinfo = "text")		
+	}
     p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = show.legend)
     
     p
@@ -440,10 +443,13 @@ plot.ACTIONet.interactive.3D <- function(ACTIONet.out, sce, labels = NULL, top.g
         
     node.data$type = labels
     node.data$vCol = vCol
-    network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = opacity, marker = list(color = ~vCol, size = ~size, 
-        opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = "rgb(0, 0, 0)")), text = node.annotations, 
-        mode = "markers", hoverinfo = "text", type = "scatter3d")
-    
+    if(is.na(Annot)) {
+		network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = opacity, marker = list(color = ~vCol, size = ~size, 
+			opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = "rgb(0, 0, 0)")), text = node.annotations, 
+			mode = "markers", hoverinfo = "text", type = "scatter3d")
+	} else {
+		network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = opacity, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1.0, alpha = 1, line = list(width = 0.1*node.size, alpha = 0.5, color = 'rgb(0, 0, 0)')), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d")
+	}
     axis <- list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE)
     p <- plotly::layout(network, title = title, shapes = edge_shapes, scene = list(xaxis = axis, yaxis = axis, zaxis = axis), showlegend = show.legend)
     
@@ -725,9 +731,11 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter =
     })
 }
 
-plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA, size.attr = NA, node.size = 0.25, trans.fact = 2, 
+plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, size.attr = NA, node.size = 1, trans.fact = 2, 
     trans.z.threshold = -1, size.fact = 1, CPal = ACTIONet.color.bank, add.text = FALSE, add.states = F, text.halo.width = 0.1, label.text.size = 0.8, 
     suppress.legend = FALSE, legend.pos = "bottomright") {
+    
+    node.size = node.size * 0.5
     
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
@@ -736,10 +744,10 @@ plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA,
     
     
     Annot = NA
-    if (is.numeric(color.attr)) {
-        color.attr = as.character(color.attr)
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    if (is.numeric(labels)) {
+        labels = as.character(labels)
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
@@ -747,8 +755,8 @@ plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA,
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.factor(color.attr)) {
-        Annot = levels(color.attr)
+    } else if (is.factor(labels)) {
+        Annot = levels(labels)
         
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
@@ -756,9 +764,9 @@ plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA,
             Pal = ggpubr::get_palette(CPal, length(Annot))
         }
         names(Pal) = Annot
-    } else if (is.character(color.attr)) {
-        color.attr = factor(color.attr, levels = sort(unique(color.attr)))
-        Annot = levels(color.attr)
+    } else if (is.character(labels)) {
+        labels = factor(labels, levels = sort(unique(labels)))
+        Annot = levels(labels)
         if (1 < length(CPal)) {
             Pal = CPal[1:length(Annot)]
         } else {
@@ -767,7 +775,7 @@ plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA,
         names(Pal) = Annot
     }
     if (length(Annot) > 1) {
-        vCol = Pal[color.attr]
+        vCol = Pal[labels]
     } else {
         vCol = V(ACTIONet)$color
         add.text = F
@@ -809,13 +817,13 @@ plot.ACTIONet <- function(ACTIONet.out, color.attr = NA, transparency.attr = NA,
     
     if (add.text) {
         centroids = t(sapply(Annot, function(l) {
-            mask = which(color.attr == l)
+            mask = which(labels == l)
             sub.coors = coors[mask, ]
             sub.G = igraph::induced.subgraph(ACTIONet, V(ACTIONet)[mask])
-            sub.G = igraph::delete.edges(sub.G, E(sub.G)[sub.G$weight < 0.9])
-            cc = igraph::components(sub.G)
-            
-            idx = which(cc$membership == which.max(cc$csize))
+			sub.adj = as(get.adjacency(sub.G, attr = "weight"), 'sparseMatrix')
+			clusters = unsigned_cluster(sub.adj)
+			            
+            idx = which(clusters == 1)
             
             if (length(idx) == 1) 
                 anchor.coor = as.numeric(sub.coors[idx, ]) else anchor.coor = as.numeric(Matrix::colMeans(sub.coors[idx, ]))
