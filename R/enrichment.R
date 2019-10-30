@@ -388,7 +388,7 @@ compute.archetype.feature.specificity <- function(ACTIONet.out, sce, mode = "spa
 
 	R.utils::printf("done\n")	
     
-    return(logPvals)
+    return(diff.sce)
 }
 
 
