@@ -793,7 +793,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, siz
         vCol.border = colorspace::darken(vCol, 0.5)
     }
     
-    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, asp = 1, axes = FALSE, xlab = "", ylab = "")
+    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = FALSE, xlab = "", ylab = "")
     
 
 	if(add.states == T) {
