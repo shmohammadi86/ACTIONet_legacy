@@ -123,11 +123,11 @@ HGT_tail <- function(population.size, success.count, sample.size, observed.succe
 
 
 
-construct.archetype.signature.profile <- function(sce, ACTIONet.out) {
+construct.archetype.signature.profile <- function(sce, ACTIONet.out, reduction_slot = "S_r") {
     require(SingleCellExperiment)
     
     # eigengene x archetypes
-    reduced.archetype.profile = (t(sce@reducedDims[["S_r"]]) %*% ACTIONet.out$reconstruct.out$C_stacked)
+    reduced.archetype.profile = (t(sce@reducedDims[[reduction_slot]]) %*% ACTIONet.out$reconstruct.out$C_stacked)
     
     X = rowData(sce)
     cnames = colnames(X)
@@ -145,6 +145,8 @@ construct.archetype.signature.profile <- function(sce, ACTIONet.out) {
 }
 
 add.archetype.labels <- function(ACTIONet.out, k_min = 2, k_max = 20) {
+	print("Adding archetype labels")
+	
     temp <- lapply(k_min:k_max, function(i) 1:i)
     arch.labels <- paste("A", unlist(lapply(1:length(temp), function(i) paste(i, temp[[i]], sep = "_"))), sep = "")
     
@@ -153,10 +155,14 @@ add.archetype.labels <- function(ACTIONet.out, k_min = 2, k_max = 20) {
     rownames(ACTIONet.out$reconstruct.out$H_stacked) <- arch.labels
     colnames(ACTIONet.out$reconstruct.out$archetype_profile) <- arch.labels
     colnames(ACTIONet.out$reconstruct.out$backbone) <- arch.labels
-    rownames(ACTIONet.out$reconstruct.out$backbone) <- arch.labels
-    colnames(ACTIONet.out$signature.profile) <- arch.labels
-    rownames(ACTIONet.out$reconstruct.out$landmark_cells) <- arch.labels
-    colnames(ACTIONet.out$archetype.differential.signature) <- arch.labels
+	rownames(ACTIONet.out$reconstruct.out$landmark_cells) <- arch.labels
+	
+    if('signature.profile' %in% names(ACTIONet.out)) {		
+		colnames(ACTIONet.out$signature.profile) <- arch.labels
+	}
+    if('archetype.differential.signature' %in% names(ACTIONet.out)) {		
+		colnames(ACTIONet.out$archetype.differential.signature) <- arch.labels
+    }
     
     return(ACTIONet.out)
 }

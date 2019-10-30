@@ -79,7 +79,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core)))
+			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core@assays[["significance"]])))
 		} else {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 			return()
@@ -89,7 +89,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 			print("Using archetype.differential.signature (all archetypes)")
 			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature)))
 		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()
 		}
 	}      
@@ -183,7 +183,7 @@ annotate.archetypes.using.markers.fromMatrix <- function(ACTIONet.out, marker.ma
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core)))
+			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core@assays[["significance"]])))
 		} else {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 			return()
@@ -193,7 +193,7 @@ annotate.archetypes.using.markers.fromMatrix <- function(ACTIONet.out, marker.ma
 			print("Using archetype.differential.signature (all archetypes)")
 			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature)))
 		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()
 		}
 	}        
@@ -385,7 +385,7 @@ annotate.clusters.using.markers <- function(sce, clusters, marker.genes, rand.sa
     }
     
     print("Computing signifcance of genes in cluster")
-    X = compute.annotations.gene.specificity(sce, clusters)
+    X = compute.annotations.feature.specificity(sce, clusters)
     if (is.null(X)) {
         print("Cannot compute cluster DE. Returning")
         return()
@@ -546,11 +546,6 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_
 	eval(parse(text=cmd))
 	
 
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}	
-
     return(ACTIONet.out)    
 }
 
@@ -594,7 +589,7 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     return(cell.Enrichment.mat)
 }
 	
-annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, ignore.DE = FALSE) {
+annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL) {
     cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment)
     
     cell.Labels = colnames(cell.Enrichment.mat)[apply(cell.Enrichment.mat, 1, which.max)]
@@ -621,19 +616,14 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
 	eval(parse(text=cmd))
 	
 
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}	
-
     return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000, ignore.DE = FALSE) {
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000) {
     arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
     
     Enrichment = arch.annot$Enrichment
-    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name, ignore.DE = ignore.DE)
+    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name)
 
     return(ACTIONet.out)
 }

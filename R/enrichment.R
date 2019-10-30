@@ -105,7 +105,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
 		if(core == T) {
 			if (("unification.out" %in% names(ACTIONet.out))) {
 				print("Using unification.out$DE.core (merged archetypes)")
-				DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core))
+				DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
 			} else {
 				print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 				return()
@@ -115,7 +115,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
 				print("Using archetype.differential.signature (all archetypes)")
 				DE.profile = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
 			} else {
-				print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+				print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 				return()
 			}
 		}                  
@@ -199,7 +199,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
 	
 	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
-		print("Please run compute.annotations.gene.specificity() first")
+		print("Please run compute.annotations.feature.specificity() first")
 		return()		
 	}
 	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile)
@@ -272,24 +272,37 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 }
 
 
-assess.gene.specificity <- function(sce, X) {
-    A = as(sce@assays[["logcounts"]], "sparseMatrix")
+assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {	
+	library(Matrix)
+	print("Computing feature specificity ... ")
+	
+    A = as(sce@assays[[sce.data.attr]], "sparseMatrix")
     
+    print("Binarize matrix")
     B = A
     B@x = rep(1, length(B@x))
     
+    print("Compute row stats")
     p_r = Matrix::rowMeans(A)
     p_r_bin = Matrix::rowMeans(B)
     alpha = p_r/p_r_bin
     
+    print("Compute column stats")
     p_c = Matrix::colMeans(B)
     rho = mean(p_c)
     beta = Matrix::t(p_c)/rho
     
     Gamma = apply(X, 1, function(x) x * beta)
     
-    Obs = A %*% t(X)
+    print("Computing observation statistics")
+    Obs = as.matrix(Matrix::t(X %*% Matrix::t(A)))	
+    
+
+    print("Computing expectation statistics")
     Exp = p_r %*% t(Matrix::colSums(Gamma))
+    
+    
+    print("Computing significance")
     Nu = p_r %*% t(Matrix::colSums(Gamma^2))
     Lambda = Obs - Exp
     
@@ -302,13 +315,19 @@ assess.gene.specificity <- function(sce, X) {
     
     logPvals = logPvals/log(10)
     
-    rownames(logPvals) = rownames(sce)
+
+    diff.sce <- SingleCellExperiment(assays = list(significance = logPvals, profile = Obs))
+    rownames(diff.sce) = rownames(diff.sce)
+    if(class(rowRanges(sce))[[1]] == "GRanges") {
+		rowRanges(diff.sce) = rowRanges(sce)
+		genome(diff.sce) = genome(sce)
+	} 
     
-    return(logPvals)
+    return(diff.sce)
 }
 
 
-assess.gene.specificity.pairwise <- function(sce, H, phenotype, case.pheno) {
+assess.feature.specificity.pairwise <- function(sce, H, phenotype, case.pheno) {
     phenotype.vec = as.numeric(phenotype == case.pheno)
     
     A = sce@assays[["logcounts"]]
@@ -357,23 +376,23 @@ assess.gene.specificity.pairwise <- function(sce, H, phenotype, case.pheno) {
 }
 
 
-compute.archetype.gene.specificity <- function(ACTIONet.out, sce, mode = "sparse") {
+compute.archetype.feature.specificity <- function(ACTIONet.out, sce, mode = "sparse", sce.data.attr = "logcounts") {
+	R.utils::printf("compute.archetype.feature.specificity:: Using mode %s\n", mode)	
     if (mode == "sparse") {
         X = t(ACTIONet.out$reconstruct.out$C_stacked)
     } else {
         X = ACTIONet.out$reconstruct.out$H_stacked
     }
     
-    logPvals = assess.gene.specificity(sce, X)
-    
-    colnames(logPvals) = colnames(ACTIONet.out$reconstruct.out$C_stacked)
-    logPvals = as.data.frame(as.matrix(logPvals))
+    logPvals = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
+
+	R.utils::printf("done\n")	
     
     return(logPvals)
 }
 
 
-compute.annotations.gene.specificity <- function(ACTIONet.out, sce, annotation.name) {
+compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotation.name, sce.data.attr = "logcounts") {
 	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
 	if(length(idx) == 0) {
 		R.utils::printf('Annotation %s not found\n', annotation.name)
@@ -386,7 +405,7 @@ compute.annotations.gene.specificity <- function(ACTIONet.out, sce, annotation.n
     X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
     
     
-    logPvals = assess.gene.specificity(sce, X)
+    logPvals = assess.feature.specificity(sce, X)
     
     colnames(logPvals) = levels(clusters)
     logPvals = as.data.frame(as.matrix(logPvals))
@@ -515,7 +534,7 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(ACTIONet.out$unification.out$DE.core))
+			archetype.panel = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
 		} else {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 			return()
@@ -525,7 +544,7 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
 			print("Using archetype.differential.signature (all archetypes)")
 			archetype.panel = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
 		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.gene.specificity() first.")
+			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()
 		}
 	}   

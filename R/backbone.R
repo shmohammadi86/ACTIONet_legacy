@@ -117,7 +117,7 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
 }
 
 unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = 0.9, resolution = 1, alpha_val = 0.5, min.cells = 5, 
-    thread_no = 8) {
+    thread_no = 8, sce.data.attr = "logcounts") {
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")
@@ -147,23 +147,14 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     })
     W.core = S_r %*% C.core
     H.core = runsimplexRegression(W.core, S_r)
-    cellstates.core = sce@assays[["logcounts"]] %*% C.core
+    cellstates.core = sce@assays[[sce.data.attr]] %*% C.core
     
     ## DE stuff
     print("Compute differential expression")
-    ### Signature DE
-    X = rowData(sce)
-    cnames = colnames(X)
-    idx = grep("^PC", cnames)
-    V = as.matrix(X[, idx])
-    perm = order(sapply(cnames[idx], function(str) as.numeric(stringr::str_replace(str, "PC", ""))))
-    V = V[, perm]
-    signature.core = V %*% W.core
-    rownames(signature.core) = rownames(sce)
     
     ### Official DE
-    DE.core = assess.gene.specificity(sce, H.core)
-    DE.core = as.data.frame(as.matrix(DE.core))
+    DE.core = assess.feature.specificity(sce, H.core, sce.data.attr = sce.data.attr)
+    #DE.core@assays[["significance"]] = as.data.frame(as.matrix(DE.core@assays[["significance"]]))
     
     print("Assign cells to cell states")
     ## Cell assignments
@@ -175,24 +166,19 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     ## Identify anchor cells
     print("Identify anchor cells")
     anchor.cells.core = apply(H.core, 1, which.max)
-    # U = t(H.core)
-    # cs = Matrix::colSums(U)
-    # cs[cs == 0] = 1
-    # U = scale(U, center = F, scale = cs)
-    # H.pr = batchPR(as(G, "sparseMatrix"), U, alpha = alpha_val, thread_no = thread_no)
-    # anchor.cells.core = apply(H.pr, 2, which.max)
+
     
     ## Groups of archetypes
     equivalent.cellstates.core = sapply(split(1:length(modules), modules), function(idx) selected.states[idx])
 
+	## Assign colors to archetypes
 	Pal.Lab = t(C.core) %*% grDevices::convertColor(color = ACTIONet.out$vis.out$colors, from = "sRGB", to = "Lab")
 	Pal = rgb(grDevices::convertColor(color = Pal.Lab, from = "Lab", to = "sRGB"))
 
     
-    res = list(C.core = C.core, W.core = W.core, H.core = H.core, cellstates.core = cellstates.core, signature.core = signature.core, 
+    res = list(C.core = C.core, W.core = W.core, H.core = H.core, cellstates.core = cellstates.core, 
         DE.core = DE.core, assignments.core = assignments.core, assignments.confidence.core = assignments.confidence.core, anchor.cells.core = anchor.cells.core, 
         equivalent.classes.core = equivalent.cellstates.core, dependency.graph = A, selected.states = selected.states, Pal = Pal)
-
 
     
     return(res)

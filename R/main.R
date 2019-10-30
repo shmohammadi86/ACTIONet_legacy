@@ -1,6 +1,6 @@
 run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
-    batch.lambda = 1, k_min = 2, n_epochs = 100) {
+    batch.lambda = 1, k_min = 2, n_epochs = 100, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
     require(Matrix)
     require(igraph)
     require(ACTIONet)
@@ -63,21 +63,24 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
         arch.vis.out = arch.vis.out)
     
     # Add signature profile
-    signature.profile = construct.archetype.signature.profile(sce = sce, ACTIONet.out = ACTIONet.out)
-    ACTIONet.out$signature.profile = signature.profile
+    if(compute.signature == TRUE) {
+		signature.profile = construct.archetype.signature.profile(sce = sce, ACTIONet.out = ACTIONet.out, reduction_slot = reduction_slot)
+		ACTIONet.out$signature.profile = signature.profile    
+	}
+	
+    # Old method of computing core archetypes -obsolete
+    if(compute.core == TRUE) {
+		core.out = identify.core.archetypes(ACTIONet.out, core.z)
+		ACTIONet.out$core.out = core.out
+	}
     
-    core.out = identify.core.archetypes(ACTIONet.out, core.z)
-    H.core = runsimplexRegression(t(sce@reducedDims[[reduction_slot]]) %*% ACTIONet.out$reconstruct.out$C_stacked[, core.out$core.archs], 
-        t(sce@reducedDims[[reduction_slot]]))
-    core.out$H = H.core
-    ACTIONet.out$core.out = core.out
+    ACTIONet.out$archetype.differential.signature = compute.archetype.feature.specificity(ACTIONet.out, sce, mode = specificity.mode, sce.data.attr = sce.data.attr)
     
-    
-    ACTIONet.out$archetype.differential.signature = compute.archetype.gene.specificity(ACTIONet.out, sce, mode = "sparse")
     ACTIONet.out = add.archetype.labels(ACTIONet.out, k_min = k_min, k_max = k_max)
     
-    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce)
+    print("ready to unify")
     
+    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr)    
     
     ACTIONet.out$log = list(genes = rownames(sce), cells = sce$cell.hashtag, time = Sys.time())
     
@@ -267,7 +270,7 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     return(ACTIONet.out.pruned)
 }
 
-update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1, ignore.DE = FALSE) {	
+update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1) {	
 	if(length(Labels) == 1) {
 		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
 		if(length(idx) == 0) {
@@ -306,16 +309,12 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
-		
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}
+
 		
     return(ACTIONet.out)	
 }
 
-cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL, ignore.DE = FALSE) {
+cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 		return(ACTIONet.out)
@@ -341,15 +340,10 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name =
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
 		
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}
-			
     return(ACTIONet.out)
 }
 
-cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init = TRUE, annotation.name = NULL, ignore.DE = FALSE) {
+cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init = TRUE, annotation.name = NULL) {
     if (arch.init == TRUE) {
 		if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
@@ -381,10 +375,6 @@ cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
 
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}
 		
     return(ACTIONet.out)
 }
@@ -669,7 +659,7 @@ infer.missing.Labels <- function(ACTIONet.out, Labels, double.stochastic = FALSE
 }
 
 
-add.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, ignore.DE = FALSE) {	
+add.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL) {	
 	if(is.null(annotation.name)) {
 		print("You need to provide a name for the annotation")
 		return(ACTIONet.out)
@@ -689,11 +679,6 @@ add.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, i
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
 
-	if( !ignore.DE ) {
-		cmd = sprintf("ACTIONet.out = compute.annotations.gene.specificity(ACTIONet.out, sce.red, \"%s\")", annotation.name)	
-		eval(parse(text=cmd))
-	}
-				
     return(ACTIONet.out)	
 }
 

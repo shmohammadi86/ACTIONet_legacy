@@ -221,7 +221,7 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NA, transparency.attr = NA, 
 
 plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
     
-	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core)
+	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 	
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
 	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
@@ -278,7 +278,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, top.genes = 7
     
     node.size = node.size * 5
 
-	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core)
+	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
 	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
@@ -286,7 +286,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, top.genes = 7
 	GT = apply(gene.enrichment.table, 2, function(x) rownames(gene.enrichment.table)[order(x, decreasing = T)[1:100]])
 	selected.genes = sort(unique(as.character(GT)))
     
-    if (annotate.cells == TRUE) {
+    if ((annotate.cells == TRUE) & !is.null(rownames(gene.enrichment.table))) {
 		cell.scores = t(gene.enrichment.table[selected.genes, ] %*% ACTIONet.out$unification.out$H.core)
 		node.annotations = apply(cell.scores, 1, function(x) paste(selected.genes[order(x, decreasing = T)[1:top.genes]], collapse = ';'))
 		node.annotations = sapply(1:length(ACTIONet.out$log$cells), function(i) sprintf('(%s) %s', ACTIONet.out$log$cells[[i]], node.annotations[[i]]) )
@@ -371,7 +371,7 @@ plot.ACTIONet.interactive.3D <- function(ACTIONet.out, sce, labels = NULL, top.g
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
 	node.size = node.size * 4
-	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core)
+	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
 	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
@@ -379,7 +379,7 @@ plot.ACTIONet.interactive.3D <- function(ACTIONet.out, sce, labels = NULL, top.g
 	GT = apply(gene.enrichment.table, 2, function(x) rownames(gene.enrichment.table)[order(x, decreasing = T)[1:100]])
 	selected.genes = sort(unique(as.character(GT)))
     
-    if (annotate.cells == TRUE) {
+    if ((annotate.cells == TRUE) & !is.null(rownames(gene.enrichment.table))) {
 		cell.scores = t(gene.enrichment.table[selected.genes, ] %*% ACTIONet.out$unification.out$H.core)
 		node.annotations = apply(cell.scores, 1, function(x) paste(selected.genes[order(x, decreasing = T)[1:top.genes]], collapse = ';'))
 		node.annotations = sapply(1:length(ACTIONet.out$log$cells), function(i) sprintf('(%s) %s', ACTIONet.out$log$cells[[i]], node.annotations[[i]]) )
