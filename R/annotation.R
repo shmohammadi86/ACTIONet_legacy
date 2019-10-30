@@ -639,36 +639,51 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", min.score = 3,
 	} else {
 		R.utils::printf("Unknown species: %s\n", species)
 	}
-	CellMarker.Enrichment = t(scale(t(CellMarker.annot.out$Enrichment)))
 	
-	CC = cor(CellMarker.Enrichment)
-	diag(CC) = 0
+	CellMarker.Enrichment = t(CellMarker.annot.out$Enrichment)
+	CellMarker.Enrichment[CellMarker.Enrichment < 0] = 0
+	x = sort(CellMarker.Enrichment[CellMarker.Enrichment > 0], decreasing = T)
+	nnz = round(sum(x^2)^2 / sum(x^4))
+	x.threshold = x[nnz]
+	mask = (apply(CellMarker.Enrichment, 1, max) > x.threshold)
+
+
+	subCellMarker.Enrichment = t(CellMarker.annot.out$Enrichment[, mask])
+	rows = sort(unique(apply(subCellMarker.Enrichment, 2, which.max)))
+	selected.celltypes = rownames(subCellMarker.Enrichment)[rows]
+	selected.marker.genes = apply(CellMarkerDB_human[, selected.celltypes], 2, function(x) rownames(CellMarkerDB_human)[x > 0])
 	
-#	max.vals = apply(scale(t(CellMarker.Enrichment)), 1 , max)
-	max.vals = apply(CellMarker.Enrichment, 2 , max)
 	
-	CC.clusters = signed_cluster(as(CC, 'sparseMatrix'), seed = 0)
-	IDX = split(1:length(CC.clusters), CC.clusters)
-	scores = sapply(IDX, function(idx) {median(max.vals[idx])})
-	scores[scores < 0] = 0
-	
-	nnz = round( (sum(scores^2)^2) / (sum(scores^4)) )
-	
-	perm = order(scores, decreasing = T)[1:nnz]
-	ordered.labels = sapply(IDX[perm], function(idx) {  colnames(CellMarker.Enrichment)[idx[which.max(max.vals[idx])]]  })
-	
-	df = data.frame(Celltype = ordered.labels, Score = scores[perm])
+# 	CellMarker.Enrichment = t(scale(t(CellMarker.annot.out$Enrichment)))
+# 	
+# 	CC = cor(CellMarker.Enrichment)
+# 	diag(CC) = 0
+# 	
+# #	max.vals = apply(scale(t(CellMarker.Enrichment)), 1 , max)
+# 	max.vals = apply(CellMarker.Enrichment, 2 , max)
+# 	
+# 	CC.clusters = signed_cluster(as(CC, 'sparseMatrix'), seed = 0)
+# 	IDX = split(1:length(CC.clusters), CC.clusters)
+# 	scores = sapply(IDX, function(idx) {median(max.vals[idx])})
+# 	scores[scores < 0] = 0
+# 	
+# 	nnz = round( (sum(scores^2)^2) / (sum(scores^4)) )
+# 	
+# 	perm = order(scores, decreasing = T)[1:nnz]
+# 	ordered.labels = sapply(IDX[perm], function(idx) {  colnames(CellMarker.Enrichment)[idx[which.max(max.vals[idx])]]  })
+# 	
+# 	df = data.frame(Celltype = ordered.labels, Score = scores[perm])
 	
 	if(plot == T) {
 		require(RColorBrewer)
 		require(ComplexHeatmap)
-		subEnrichment = t(scale(CellMarker.Enrichment[, as.character(df$Celltype)]))
 		gradPal = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
-		ht = Heatmap(subEnrichment, row_names_gp = gpar(fontsize = 8), column_names_gp = gpar(fontsize = 8), name = "Enrichment", row_title = "Putative Cell-types", column_title = "Cell States", col=gradPal)	
+		ht = Heatmap(subCellMarker.Enrichment[rows, ], row_names_gp = gpar(fontsize = 8), column_names_gp = gpar(fontsize = 8), name = "Enrichment", row_title = "Putative Cell-types", column_title = "Cell States", col=gradPal)	
 		show(ht)
 	}
 	
-	res = list(ranked.celltypes = df, Enrichment = CellMarker.Enrichment)
+	res = list(selected.marker.genes = selected.marker.genes, Enrichment = CellMarker.Enrichment, subEnrichment = CellMarker.Enrichment[names(selected.marker.genes), ])
+
 	return(res)
 }
 

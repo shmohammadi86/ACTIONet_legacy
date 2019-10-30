@@ -440,7 +440,8 @@ plot.ACTIONet.interactive.3D <- function(ACTIONet.out, sce, labels = NULL, top.g
     } else {
         vCol = V(ACTIONet)$color
     }
-        
+      
+    
     node.data$type = labels
     node.data$vCol = vCol
     if(is.na(Annot)) {
@@ -811,7 +812,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, siz
 		core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)
 		
 	    
-	    graphics::plot(core.coors, pch = 25, cex = 4*node.size, bg = core.colors, col = "#eeeeee", asp = 1, axes = FALSE, xlab = "", ylab = "")
+	    graphics::plot(core.coors, pch = 25, cex = 4*node.size, bg = core.colors, col = "#eeeeee", axes = FALSE, xlab = "", ylab = "")
 	}    
     
     
