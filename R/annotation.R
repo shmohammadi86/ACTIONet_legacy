@@ -274,7 +274,7 @@ annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marke
 		return()		
 	}
 	X = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
-	
+	clusters = ACTIONet.out$annotations[[idx]]$Labels
     
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
