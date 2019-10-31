@@ -305,21 +305,22 @@ annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marke
                 Celltype = celltype)
         }
     }))
-    markers.table = markers.table[markers.table$Gene %in% rownames(sce), ]
+    markers.table = markers.table[markers.table$Gene %in% rownames(X), ]
     if (dim(markers.table)[1] == 0) {
         print("No markers are left")
         return()
     }
     
-    print("Computing signifcance of genes in cluster")
-    X = compute.annotations.feature.specificity(sce, clusters)
+    #print("Computing signifcance of genes in cluster")
+    #X = compute.annotations.feature.specificity(sce, clusters)
+    
     if (is.null(X)) {
         print("Cannot compute cluster DE. Returning")
         return()
     }
     expression.panel = Matrix::t(X)
     
-    colnames(expression.panel) = rownames(sce)
+    #colnames(expression.panel) = rownames(sce)
     
     
     IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
