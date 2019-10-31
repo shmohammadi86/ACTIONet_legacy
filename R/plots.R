@@ -1,5 +1,7 @@
+ACTIONet.color.bank = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#888888", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488")
+
 # From: https://github.com/r3fang/SnapATAC/blob/master/R/plottings-utilities.R
-ACTIONet.color.bank = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
+ACTIONet.color.bank1 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
     "#774411", "#AA7744", "#AA4455", "#117744", "#000080", "#44AA77", "#AA4488", "#DDAA77", "#D9D9D9", "#BC80BD", "#FFED6F", "#7FC97F", 
     "#BEAED4", "#FDC086", "#FFFF99", "#386CB0", "#F0027F", "#BF5B17", "#666666", "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", 
     "#E6AB02", "#A6761D", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", 
@@ -224,7 +226,8 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
 	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 	
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
-	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
+	if(length(filtered.rows) > 0)
+		gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
 	
 	GT = apply(gene.enrichment.table, 2, function(x) rownames(gene.enrichment.table)[order(x, decreasing = T)[1:top.genes]])
 	selected.genes = sort(unique(as.character(GT)))
@@ -276,12 +279,13 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, top.genes = 7
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
 
     
-    node.size = node.size * 5
+    node.size = node.size * 7
 
 	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
-	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
+	if(length(filtered.rows) > 0)
+		gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
 
 	GT = apply(gene.enrichment.table, 2, function(x) rownames(gene.enrichment.table)[order(x, decreasing = T)[1:100]])
 	selected.genes = sort(unique(as.character(GT)))
@@ -358,23 +362,24 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, top.genes = 7
 	} else {
 		network <- plot_ly(node.data, x = ~x, y = ~y, opacity = opacity, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1.0, alpha = 1, line = list(width = 0.1*node.size, alpha = 0.5, color = 'rgb(0, 0, 0)')), text = node.annotations, mode = "markers", type = 'scatter', hoverinfo = "text")		
 	}
-    p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = show.legend)
+    p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = show.legend, legend = list(marker = list(marker.size = 10)))
     
     p
 }
 
-plot.ACTIONet.interactive.3D <- function(ACTIONet.out, sce, labels = NULL, top.genes = 7, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", node.size = 1, opacity = 1, CPal = ACTIONet.color.bank, show.legend = TRUE, annotate.cells = TRUE, title = "ACTIONet") {    
+plot.ACTIONet.interactive.3D <- function(ACTIONet.out, labels = NULL, top.genes = 7, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", node.size = 1, opacity = 1, CPal = ACTIONet.color.bank, show.legend = TRUE, annotate.cells = TRUE, title = "ACTIONet") {    
     require(plotly)
     require(ACTIONet)
 
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
-	node.size = node.size * 4
+	node.size = node.size * 5
 	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
 
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
-	gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
+	if(length(filtered.rows) > 0)
+		gene.enrichment.table = gene.enrichment.table[-filtered.rows, ]
 
 	GT = apply(gene.enrichment.table, 2, function(x) rownames(gene.enrichment.table)[order(x, decreasing = T)[1:100]])
 	selected.genes = sort(unique(as.character(GT)))
@@ -800,14 +805,14 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, siz
 	if(add.states == T) {
 		par(new=TRUE)
 		
-		M = Matrix::t(as(ACTIONet.out$unification.out$H.core, 'sparseMatrix'))
+		M = as(ACTIONet.out$unification.out$C.core, 'sparseMatrix')
 		cs = Matrix::colSums(M)
 		M = scale(M, center = FALSE, scale = cs)
 		
 	    cell.Lab = grDevices::convertColor(color = t(col2rgb(vCol)/256), from = "sRGB", to = "Lab")	    
 	    core.Lab = t(t(cell.Lab) %*% M)
 	    core.colors = rgb(grDevices::convertColor(color = core.Lab, from = "Lab", to = "sRGB"))
-		core.colors = colorspace::lighten(core.colors, 0.3)
+		core.colors = colorspace::lighten(core.colors, 0.1)
 		
 		core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)
 		
@@ -819,6 +824,9 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, siz
     if (add.text) {
         centroids = t(sapply(Annot, function(l) {
             mask = which(labels == l)
+            if(sum(mask) == 1) {
+				return(as.numeric(sub.coors = coors[mask, ]))
+			}
             sub.coors = coors[mask, ]
             sub.G = igraph::induced.subgraph(ACTIONet, V(ACTIONet)[mask])
 			sub.adj = as(get.adjacency(sub.G, attr = "weight"), 'sparseMatrix')

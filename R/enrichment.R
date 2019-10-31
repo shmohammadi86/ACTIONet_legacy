@@ -147,7 +147,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
     if (!is.null(genes.subset)) {
         common.genes = intersect(common.genes, genes.subset)
     }    
-	filtered.genes = rownames(DE.profile)[grep(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
+	filtered.genes = rownames(DE.profile)[grepl(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
 	common.genes = setdiff(common.genes, filtered.genes)
 	
     
@@ -230,7 +230,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
     if (!is.null(genes.subset)) {
         common.genes = intersect(common.genes, genes.subset)
     }    
-	filtered.genes = rownames(DE.profile)[grep(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
+	filtered.genes = rownames(DE.profile)[grepl(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
 	common.genes = setdiff(common.genes, filtered.genes)
 	
     
@@ -405,7 +405,7 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
     X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
     
     
-    diff.sce = assess.feature.specificity(sce, X)
+    diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
 
 	
 	ACTIONet.out$annotations[[idx]]$DE.profile = diff.sce

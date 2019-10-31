@@ -270,50 +270,6 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     return(ACTIONet.out.pruned)
 }
 
-update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1) {	
-	if(length(Labels) == 1) {
-		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
-		if(length(idx) == 0) {
-			R.utils::printf('Annotation %s not found\n', Labels)
-			return(ACTIONet.out)
-		}
-		
-		R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-		Labels = ACTIONet.out$annotations[[idx]]$Labels
-	}
-	
-    if(! is.null(min.cluster.size) ) {
-		print("Re-assign trivial clusters")
-		counts = table(Labels)
-		Labels[Labels %in% as.numeric(names(counts)[counts < min.cluster.size])] = NA
-		Labels = as.numeric(infer.missing.Labels(ACTIONet.out, Labels))
-	}
-	
-	print("Perform mis-label correction using label propagation algorithm")
-	Labels = correct.cell.labels(ACTIONet.out, Labels, update.LFR.threshold = update.LFR.threshold )
-
-    names(Labels) = ACTIONet.out$log$cells   
-	
-	if(! ('annotations' %in% names(ACTIONet.out)) ) {
-		ACTIONet.out$annotations = list()
-	}
-
-	time.stamp = as.character(Sys.time())
-	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
-	}
-	h = hashid_settings(salt = time.stamp, min_length = 8)
-	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
-	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "update.cell.annotations")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
-	eval(parse(text=cmd))
-
-		
-    return(ACTIONet.out)	
-}
-
 cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")

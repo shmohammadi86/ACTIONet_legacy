@@ -1,9 +1,6 @@
-import.sce.from.count.matrix <- function(counts, gene.names = NULL, prefilter = FALSE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
-    if (!is.null(gene.names)) {
-        rownames(counts) = gene.names
-    }
-    
+import.sce.from.count.matrix <- function(counts, gene.names, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
     counts = as(as.matrix(counts), "sparseMatrix")
+	rownames(counts) = gene.names    
     
     sce <- SingleCellExperiment(assays = list(counts = counts))
     
@@ -18,7 +15,7 @@ import.sce.from.count.matrix <- function(counts, gene.names = NULL, prefilter = 
     return(sce)
 }
 
-import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = FALSE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
+import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
     require(Matrix)
     require(SingleCellExperiment)
     
@@ -45,49 +42,41 @@ import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = 
     return(sce)
 }
 
-import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", gene_annotations = "features.tsv.gz", sample_annotations = "barcodes.tsv.gz", 
-    sep = "\t", header = FALSE, prefilter = FALSE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
+import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_annotations = "features.tsv.gz", sample_annotations = "barcodes.tsv.gz", 
+    sep = "\t", header = FALSE, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
     require(Matrix)
     require(scran)
     
     counts = readMM(paste(input_path, mtx_file, sep = "/"))
-    gene.table = read.table(paste(input_path, gene_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
+    feature_table = read.table(paste(input_path, feature_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
     sample_annotations = read.table(paste(input_path, sample_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
-    
-    rownames(counts) = gene.table[, 1]
-    colnames(counts) = sample_annotations[, 1]
-    
-    sce <- SingleCellExperiment(assays = list(counts = counts), colData = sample_annotations, rowData = gene.table)
-    
-    if (prefilter) {
-        cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
-        sce = sce[cell.counts > min.cells.per.gene, ]
-        
-        feature.counts = Matrix::colSums(sce@assays[["counts"]] > 0)
-        sce = sce[, feature.counts > min.genes.per.cell]
-    }
-    
-    return(sce)
-}
 
-import.sce.from.10X.TotalSeq <- function(input_path, mtx_file = "matrix.mtx.gz", feature_annotations = "features.tsv.gz", sample_annotations = "barcodes.tsv.gz", 
-    sep = "\t", header = FALSE, prefilter = FALSE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
-    require(Matrix)
-    require(scran)
+    # Handle header
+    if(nrow(feature_table) == nrow(counts) + 1) {
+		colnames(feature_table) = feature_table[1, ]
+		feature_table = feature_table[-1, ]
+	}
+    if(nrow(sample_annotations) == ncol(counts) + 1) {
+		colnames(sample_annotations) = sample_annotations[1, ]
+		sample_annotations = sample_annotations[-1, ]
+	}
+
     
-    counts = readMM(paste(input_path, mtx_file, sep = "/"))
-    feature.table = read.table(paste(input_path, feature_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
-    sample_annotations = read.table(paste(input_path, sample_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
-    
-    
-    IDX = split(1:nrow(feature.table), feature.table$V3)
-    
-    expression.counts = counts[IDX$`Gene Expression`, ]
-    
-    gene.table = feature.table[IDX$`Gene Expression`, 1:2]
+    if(ncol(feature_table) > 2) {
+		IDX = split(1:nrow(feature_table), feature_table$V3)
+		expression.counts = counts[IDX$`Gene Expression`, ]
+		gene.table = feature_table[IDX$`Gene Expression`, 1:2]    
+		IDX = IDX[!grepl("Gene Expression", names(IDX))]
+	} else {
+		expression.counts = counts
+		gene.table = feature_table
+		IDX = list()
+	}
+	
     colnames(gene.table) = c("ENSEMBL", "SYMBOL")
-    rownames(expression.counts) = gene.table$SYMBOL
-    colnames(expression.counts) = sample_annotations$V1
+    rownames(expression.counts) = gene.table$SYMBOL    
+    colnames(expression.counts) = sample_annotations[, 1]
+    
     
     if (ncol(sample_annotations) > 1) {
         sce <- SingleCellExperiment(assays = list(counts = expression.counts), colData = sample_annotations, rowData = gene.table[, 
@@ -96,14 +85,19 @@ import.sce.from.10X.TotalSeq <- function(input_path, mtx_file = "matrix.mtx.gz",
         sce <- SingleCellExperiment(assays = list(counts = expression.counts), rowData = gene.table)
     }
     
-    ABC.counts = counts[IDX$`Antibody Capture`, ]
-    ABC.table = feature.table[IDX$`Antibody Capture`, ]
-    rownames(ABC.counts) = ABC.table$V1
-    colnames(ABC.counts) = sample_annotations$V1
-    
-    
-    sce@reducedDims[["ABC"]] = Matrix::t(ABC.counts)
-    
+    # Load additional barcoded features
+    for(feature.name in names(IDX)) {
+		feature.counts = counts[IDX[[feature.name]], ]
+		
+		row.annotations = feature_table[IDX[[feature.name]], ]
+		
+		rownames(feature.counts) = row.annotations[, 1]
+		colnames(feature.counts) = sample_annotations[, 1]
+		
+		
+		sce@reducedDims[[feature.name]] = Matrix::t(feature.counts)
+	}
+	
     
     if (prefilter) {
         cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
@@ -144,7 +138,7 @@ import.sce.from.CDS <- function(monocle_cds) {
 }
 
 
-rename.sce.rows <- function(sce, from = "ENSEMBL", to = "SYMBOL", species = "human") {
+convert.sce.rownames <- function(sce, from = "ENSEMBL", to = "SYMBOL", species = "human") {
     if (species == "human") {
         library(org.Hs.eg.db)
         suppressWarnings(ids <- mapIds(org.Hs.eg.db, keys = row.names(sce), keytype = from, column = to, multiVals = "first"))

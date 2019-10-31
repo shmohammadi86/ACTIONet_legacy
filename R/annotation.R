@@ -37,12 +37,20 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no 
     return(out.list)
 }
 
-annotate.clusters.using.labels <- function(clusters, Labels) {
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels, levels = sort(unique(Labels)))
-    }
-    clusters = as.numeric(clusters)
+
+
+annotate.clusters.using.labels <- function(ACTIONet.out, annotation.name, Labels) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	
+	clusters = ACTIONet.out$annotations[[idx]]$Labels
     
+        
     pop.size = length(Labels)
     pos.size = table(Labels)
     
@@ -68,6 +76,7 @@ annotate.clusters.using.labels <- function(clusters, Labels) {
     
     return(list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = logPvals))
 }
+
 
 annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = F) {
     require(ACTIONet)
@@ -251,103 +260,21 @@ annotate.archetypes.using.markers.fromMatrix <- function(ACTIONet.out, marker.ma
 
 
 
-annotate.core.archetypes.using.markers <- function(ACTIONet.out, sce, marker.genes, rand.sample.no = 1000) {
-    require(ACTIONet)
-    require(igraph)
-    require(Matrix)
-    require(stringr)
-    
-    GS.names = names(marker.genes)
-    if (is.null(GS.names)) {
-        GS.names = sapply(1:length(GS), function(i) sprintf("Celltype %s", i))
-    }
-    
-    markers.table = do.call(rbind, lapply(names(marker.genes), function(celltype) {
-        genes = marker.genes[[celltype]]
-        if (length(genes) == 0) 
-            return(data.frame())
-        
-        
-        signed.count = sum(sapply(genes, function(gene) grepl("\\+$|-$", gene)))
-        is.signed = signed.count > 0
-        
-        if (!is.signed) {
-            df = data.frame(Gene = toupper(genes), Direction = +1, Celltype = celltype)
-        } else {
-            # pos.genes = toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('\\+$', gene))]))) neg.genes =
-            # toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('-$', gene))])))
-            
-            pos.genes = toupper(as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
-                stringr::fixed("+"), ""))))
-            neg.genes = toupper(as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
-                stringr::fixed("-"), ""))))
-            
-            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
-                Celltype = celltype)
-        }
-    }))
-    markers.table = markers.table[markers.table$Gene %in% colnames(archetype.panel), ]
-    if (dim(markers.table)[1] == 0) {
-        print("No markers are left")
-        return()
-    }
-    
-    
-    print("Computing signifcance of genes in archetypes")
-    if (!("unification.out" %in% names(ACTIONet.out))) {
-        print("Computing unification.out")
-        ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce)
-    }
-    archetype.panel = t(ACTIONet.out$unification.out$signature.core)
-    colnames(archetype.panel) = rownames(sce)
-    
-    
-    IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
-    
-    print("Computing significance scores")
-    set.seed(0)
-    Z = sapply(IDX, function(idx) {
-        markers = toupper(as.character(markers.table$Gene[idx]))
-        directions = markers.table$Direction[idx]
-        mask = markers %in% colnames(archetype.panel)
-        
-        A = as.matrix(archetype.panel[, markers[mask]])
-        sgn = as.numeric(directions[mask])
-        stat = A %*% sgn
-        
-        rand.stats = sapply(1:rand.sample.no, function(i) {
-            rand.samples = sample.int(dim(archetype.panel)[2], sum(mask))
-            rand.A = as.matrix(archetype.panel[, rand.samples])
-            rand.stat = rand.A %*% sgn
-        })
-        
-        cell.zscores = as.numeric((stat - apply(rand.stats, 1, mean))/apply(rand.stats, 1, sd))
-        
-        return(cell.zscores)
-    })
-    
-    Z[is.na(Z)] = 0
-    Labels = colnames(Z)[apply(Z, 1, which.max)]
-    
-    L = names(marker.genes)
-    L = L[L %in% Labels]
-    Labels = factor(Labels, levels = L)
-    Labels.conf = apply(Z, 1, max)
-    
-    names(Labels) = rownames(archetype.panel)
-    names(Labels.conf) = rownames(archetype.panel)
-    rownames(Z) = rownames(archetype.panel)
-    
-    out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
-    
-    return(out.list)
-}
-
-annotate.clusters.using.markers <- function(sce, clusters, marker.genes, rand.sample.no = 1000) {
-    require(ACTIONet)
-    require(igraph)
-    require(Matrix)
-    require(stringr)
+annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marker.genes, rand.sample.no = 1000) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	
+	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
+		print("Please run compute.annotations.feature.specificity() first")
+		return()		
+	}
+	X = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+	
     
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
@@ -687,12 +614,16 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", min.score = 3,
 	return(res)
 }
 
-highlight.annotations <- function(ACTIONet.out, annotation.tag = NULL, z.threshold = -1) {
-    if (is.null(Labels)) {
-        clusters = cluster.ACTIONet.highRes(ACTIONet.out)
-    } else {
-        clusters = as.numeric(factor(Labels))
-    }
+highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -1) {
+	annot.idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(annot.idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[annot.idx]], ACTIONet.out$annotations[[annot.idx]]$annotation.name)
+	
+	clusters = ACTIONet.out$annotations[[annot.idx]]$Labels
     
     IDX = split(1:length(clusters), clusters)
     cluster.cell.connectivity = vector("list", length(IDX))
@@ -729,6 +660,54 @@ highlight.annotations <- function(ACTIONet.out, annotation.tag = NULL, z.thresho
     out = list(connectivity.scores = all.cell.connectivity.scores, pruned.cells = all.pruned.cells, cluster.connectivity.scores = cluster.cell.connectivity, 
         cluster.pruned.cells = cluster.pruned.cells, is.pruned = is.pruned)
     
-    return(out)
+    ACTIONet.out$annotations[[annot.idx]]$highlight = out
+    
+    return(ACTIONet.out)
+}
+
+
+update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1) {	
+	if(length(Labels) == 1) {
+		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
+		if(length(idx) == 0) {
+			R.utils::printf('Annotation %s not found\n', Labels)
+			return(ACTIONet.out)
+		}
+		
+		R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+		Labels = ACTIONet.out$annotations[[idx]]$Labels
+	}
+	
+	print("Perform mis-label correction using label propagation algorithm")
+	Labels = correct.cell.labels(ACTIONet.out, Labels, update.LFR.threshold = update.LFR.threshold )
+
+    names(Labels) = ACTIONet.out$log$cells   
+
+    if(! is.null(min.cluster.size) ) {
+		print("Re-assign trivial clusters")
+		counts = table(Labels)
+		Labels[Labels %in% as.numeric(names(counts)[counts < min.cluster.size])] = NA
+		Labels = as.numeric(infer.missing.Labels(ACTIONet.out, Labels))
+	}
+	
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.name)) {
+		annotation.name = sprintf('%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "update.cell.annotations")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+
+		
+    return(ACTIONet.out)	
 }
 
