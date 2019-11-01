@@ -823,21 +823,27 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NA, transparency.attr = NA, siz
     
     if (add.text) {
         centroids = t(sapply(Annot, function(l) {
-            mask = which(labels == l)
-            if(sum(mask) == 1) {
-				return(as.numeric(sub.coors = coors[mask, ]))
-			}
-            sub.coors = coors[mask, ]
-            sub.G = igraph::induced.subgraph(ACTIONet, V(ACTIONet)[mask])
-			sub.adj = as(get.adjacency(sub.G, attr = "weight"), 'sparseMatrix')
-			clusters = unsigned_cluster(sub.adj)
-			            
-            idx = which(clusters == 1)
-            
-            if (length(idx) == 1) 
-                anchor.coor = as.numeric(sub.coors[idx, ]) else anchor.coor = as.numeric(Matrix::colMeans(sub.coors[idx, ]))
-            
-            return(anchor.coor)
+            idx = which(labels == l)
+            if(length(idx) <= 10) {
+				return(as.numeric(Matrix::rowMeans(as.matrix(coors[idx, ]))))
+			} 
+            sub.coors = coors[idx, ]
+            D = as.matrix(dist(sub.coors))
+            stats = Matrix::rowMeans(D)
+            min.idx = which.min(stats)
+			anchor.coor = as.numeric(sub.coors[min.idx, ])            
+			return(anchor.coor)
+			
+#             sub.G = igraph::induced.subgraph(ACTIONet, V(ACTIONet)[mask])
+# 			sub.adj = as(get.adjacency(sub.G, attr = "weight"), 'sparseMatrix')
+# 			clusters = unsigned_cluster(sub.adj)
+# 			           
+#             idx = which(clusters == 1)
+#             
+#             if (length(idx) == 1) 
+#                 anchor.coor = as.numeric(sub.coors[idx, ]) else anchor.coor = as.numeric(Matrix::colMeans(sub.coors[idx, ]))
+#             
+#             return(anchor.coor)
         }))
         textHalo(x = centroids[, 1], y = centroids[, 2], labels = Annot, col = colorspace::darken(Pal, 0.5), bg = "#eeeeee", r = text.halo.width, 
             cex = label.text.size)

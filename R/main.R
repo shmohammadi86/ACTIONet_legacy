@@ -191,9 +191,14 @@ rehash.cells <- function(sce, salt = NULL) {
 remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     require(igraph)
     
+    if(is.character(filtered.cells)) {
+		filtered.cells = match(intersect(filtered.cells, ACTIONet.out$log$cells), ACTIONet.out$log$cells)
+	}
+    
     core.cells = which(rowSums(ACTIONet.out$reconstruct.out$C_stacked) > 0)
     if (!force) 
-        selected.cells = sort(unique(union(core.cells, setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))) else selected.cells = sort(unique(setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))
+        selected.cells = sort(unique(union(core.cells, setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))) 
+	else selected.cells = sort(unique(setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))
     
     ACTIONet.out.pruned = ACTIONet.out
     
@@ -262,6 +267,21 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     ACTIONet.out.pruned$unification.out$H.core = ACTIONet.out.pruned$unification.out$H.core[, selected.cells]
     ACTIONet.out.pruned$unification.out$assignments.core = ACTIONet.out.pruned$unification.out$assignments.core[selected.cells]
     ACTIONet.out.pruned$unification.out$assignments.confidence.core = ACTIONet.out.pruned$unification.out$assignments.confidence.core[selected.cells]
+
+	# Update existing cell annotations
+	for(annotation.name in names(ACTIONet.out$annotations)) {
+		X = ACTIONet.out$annotations[[annotation.name]]
+		
+		X$Labels = X$Labels[selected.cells]
+		X$Labels.confidence = X$Labels.confidence[selected.cells]
+		X$cells = selected.cells
+		
+		ACTIONet.out$annotations[[annotation.name]] = X
+		
+		if(! is.null(X$highlight) ) {
+			ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name)
+		}
+	}
     
     ## Update ACTIONet log
     ACTIONet.out.pruned$log$cells = ACTIONet.out.pruned$log$cells[selected.cells]
