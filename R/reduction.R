@@ -31,6 +31,7 @@ reduce.sce <- function(sce, reduced_dim = 50, norm.method = "default", max.iter 
     }
     colnames(sce.norm@assays[["counts"]]) = colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
     
+    print("Running main reduction")
     suppressWarnings({
         reduction.out = reduceGeneExpression(as(sce.norm@assays[["logcounts"]], "sparseMatrix"), reduced_dim = reduced_dim, method = 1, 
             iters = max.iter)

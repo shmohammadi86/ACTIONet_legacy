@@ -1,4 +1,4 @@
-run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
+run.ACTIONet <- function(sce, k_max = 30, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
     batch.lambda = 1, k_min = 2, n_epochs = 100, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
     require(Matrix)
@@ -295,10 +295,8 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name =
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 		return(ACTIONet.out)
 	}
-	clusters = ACTIONet.out$unification.out$assignments.core
-	clusters = factor(clusters, levels = sort(unique(clusters)))
-	
-    names(clusters) = ACTIONet.out$log$cells   
+	clusters = as.numeric(ACTIONet.out$unification.out$assignments.core)
+    names(clusters) = paste("Cluster", as.character(clusters), sep = " ")
 	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -306,7 +304,7 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name =
 
 	time.stamp = as.character(Sys.time())
 	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
+		annotation.name = sprintf('Clustering_%s', time.stamp)
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
@@ -326,14 +324,13 @@ cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init
 			return(ACTIONet.out)
 		}
         print("Perform archetype-based initialization")
-		initial.clusters = factor(ACTIONet.out$unification.out$assignments.core)
-        clusters = factor(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0, initial.clusters))
+		initial.clusters = ACTIONet.out$unification.out$assignments.core
+        clusters = as.numeric(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0, initial.clusters))
     } else {
         print("Perform default initialization")
-        clusters = factor(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0))
-    }
-    
-    names(clusters) = ACTIONet.out$log$cells   
+        clusters = as.numeric(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0))
+    }    
+    names(clusters) = paste("Cluster", as.character(clusters), sep = " ")
 	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -341,7 +338,7 @@ cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init
 
 	time.stamp = as.character(Sys.time())
 	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
+		annotation.name = sprintf('Clustering_%s', time.stamp)
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
@@ -489,14 +486,21 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     return(imputed.gene.expression)
 }
 
-correct.cell.labels <- function(ACTIONet.out, Labels, max.iter = 3, double.stochastic = FALSE, update.LFR.threshold = 3) {
-    if (is.igraph(ACTIONet.out)) 
-        ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
-    
-    
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels, levels = sort(unique(Labels)))
-    }
+correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, max.iter = 3, double.stochastic = FALSE, update.LFR.threshold = 3) {
+	ACTIONet = ACTIONet.out$ACTIONet
+
+	# Directely passed a label vector
+	if(length(annotation.in) > 1) {
+		Labels = annotation.in
+	} else {	
+		idx = which(names(ACTIONet.out$annotations) == annotation.in)
+		if(length(idx) == 0) {
+			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
+			return(ACTIONet)
+		}		
+		Labels = ACTIONet.out$annotations[[idx]]$Labels    
+	}
+	Labels = preprocess.labels(Labels)
     
     A = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
     eps = 1e-16
@@ -554,24 +558,45 @@ correct.cell.labels <- function(ACTIONet.out, Labels, max.iter = 3, double.stoch
         Labels[mask] = newLabels[mask]
     }
     
-    return(Labels)
+    
+   	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.out)) {
+		annotation.out = sprintf('CorrectedAnnotation_%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
+	eval(parse(text=cmd))    
+	
+	return(ACTIONet.out)
+	
 }
 
-infer.missing.Labels <- function(ACTIONet.out, Labels, double.stochastic = FALSE, max_iter = 3) {
-    if (is.igraph(ACTIONet.out)) {
-        ACTIONet = ACTIONet.out
-        Adj = get.adjacency(ACTIONet, attr = "weight")
-    } else if (is.matrix(ACTIONet.out) | is.sparseMatrix(ACTIONet.out)) {
-        Adj = ACTIONet.out
-    } else {
-        ACTIONet = ACTIONet.out$ACTIONet
-        Adj = get.adjacency(ACTIONet, attr = "weight")
-    }
+
+infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, double.stochastic = FALSE, max_iter = 3) {
+	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
     
     
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels, levels = sort(unique(Labels)))
-    }
+	# Directely passed a label vector
+	if(length(annotation.in) > 1) {
+		Labels = annotation.in
+	} else {	
+		idx = which(names(ACTIONet.out$annotations) == annotation.in)
+		if(length(idx) == 0) {
+			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
+			return(ACTIONet)
+		}		
+		Labels = ACTIONet.out$annotations[[idx]]$Labels    
+	}
+	Labels = preprocess.labels(Labels)
+
     
     A = as(Adj, "dgTMatrix")
     eps = 1e-16
@@ -628,35 +653,26 @@ infer.missing.Labels <- function(ACTIONet.out, Labels, double.stochastic = FALSE
         i = i + 1
     }
     
-    if (sum(na.mask) > 0) 
-        Labels[na.mask] = updated.Labels[na.mask]
     
-    return(Labels)
-}
-
-
-add.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL) {	
-	if(is.null(annotation.name)) {
-		print("You need to provide a name for the annotation")
-		return(ACTIONet.out)
-	}
-	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+   	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
 
-    names(Labels) = ACTIONet.out$log$cells   	
-
 	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.out)) {
+		annotation.out = sprintf('InferredMissingLabels_%s', time.stamp)
+	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
-	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "add.cell.annotations")
+	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
 	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
-	eval(parse(text=cmd))
-
-    return(ACTIONet.out)	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
+	eval(parse(text=cmd))    
+	
+	return(ACTIONet.out)
 }
+
 
 extract.all.annotations <- function(ACTIONet.out) {
 	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(X) {

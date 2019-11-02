@@ -1,4 +1,38 @@
-annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no = 1000, core = F) {
+add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name = NULL) {	
+	if(is.null(annotation.name)) {
+		print("Error: You need to provide a name for the annotation")
+		return(ACTIONet.out)
+	}
+	
+	if(length(cell.annotations) != length(ACTIONet.out$log$cells)) {
+		print("Error: Number of elemebts in the cell.annotations should match with the number of cells in ACTIONet.out$log$cells.")
+		return(ACTIONet.out)
+	} else {
+		names(cell.annotations) = ACTIONet.out$log$cells   	
+	}
+	
+	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+
+	time.stamp = as.character(Sys.time())
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+
+	res = list(Labels = cell.annotations, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "add.cell.annotations")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+	eval(parse(text=cmd))
+
+	R.utils::printf("Annotation %s has been added to ACTIONet.out$annotations list\n", annotation.name)
+	
+    return(ACTIONet.out)	
+}
+
+
+annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no = 1000, core = T) {
     if (!is.factor(Labels)) {
         Labels = factor(Labels)
     }
@@ -39,46 +73,67 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no 
 
 
 
-annotate.clusters.using.labels <- function(ACTIONet.out, annotation.name, Labels) {
-	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
-	if(length(idx) == 0) {
-		R.utils::printf('Annotation %s not found\n', annotation.name)
-		return(ACTIONet.out)
+annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, annotation.known) {
+	
+	cl.idx = which(names(ACTIONet.out$annotations) == annotation.cluster)
+	if(length(cl.idx) == 0) {
+		R.utils::printf('Error in correct.cell.labels: annotation.cluster "%s" not found\n', annotation.cluster)
+		return(ACTIONet)
+	}		
+	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels    
+	clusters = preprocess.labels(clusters)
+
+	if(length(annotation.known) > 1) {
+		Labels = annotation.known
+	} else {	
+		idx = which(names(ACTIONet.out$annotations) == annotation.known)
+		if(length(idx) == 0) {
+			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
+			return(ACTIONet)
+		}		
+		clusters = ACTIONet.out$annotations[[idx]]$Labels    
 	}
-	
-	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-	
-	clusters = ACTIONet.out$annotations[[idx]]$Labels
-    
-        
+	Labels = preprocess.labels(Labels)
+
+
     pop.size = length(Labels)
     pos.size = table(Labels)
     
     logPvals = sapply(sort(unique(clusters)), function(i) {
         idx = which(clusters == i)
         sample.size = length(idx)
-        success.size = table(Labels[idx])
-        
+        success.size = sapply(sort(unique(Labels)), function(i) {
+        	sum(Labels[idx] == i)
+        })
+
         logPval = HGT_tail(pop.size, pos.size, sample.size, success.size)
         
         return(logPval)
     })
     
-    clusterLabels = factor(levels(Labels)[apply(logPvals, 2, which.max)])
-    cellLabels = factor(clusterLabels[clusters], levels = levels(clusterLabels))
+    Annot = names(Labels)[match(sort(unique(Labels)), Labels)]
+    
+    clusterLabels = Annot[apply(logPvals, 2, which.max)]
+    
+    cellLabels = match(clusterLabels[clusters], Annot)
+    names(cellLabels) = clusterLabels[clusters]
     
     fullLabels = sapply(sort(unique(clusters)), function(i) {
         return(sprintf("Cluster %d (%s)", i, clusterLabels[[i]]))
     })
-    fullLabels = factor(fullLabels, levels = fullLabels)
+
+    cellFullLabels = match(fullLabels[clusters], fullLabels)
+    names(cellFullLabels) = fullLabels[clusters]
     
-    cellFullLabels = factor(fullLabels[clusters], levels = levels(fullLabels))
+    res = list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = logPvals)
     
-    return(list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = logPvals))
+    ACTIONet.out$annotations[[cl.idx]]$labelEnrichment = res
+    
+    return(ACTIONet.out)
 }
 
 
-annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = F) {
+annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = T) {
     require(ACTIONet)
     require(igraph)
     require(Matrix)
@@ -183,99 +238,21 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 
 
 
-annotate.archetypes.using.markers.fromMatrix <- function(ACTIONet.out, marker.mat, rand.sample.no = 1000, core = F) {
-    require(ACTIONet)
-    require(igraph)
-    require(Matrix)
-    require(stringr)
-        
-	if(core == T) {
-		if (("unification.out" %in% names(ACTIONet.out))) {
-			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core@assays[["significance"]])))
-		} else {
-			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
-			return()
-		}
-	} else {
-		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
-			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature)))
-		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
-			return()
-		}
-	}        
-	   
-    #archetype.panel = archetype.panel[, common.genes]
-    common.genes = intersect(colnames(archetype.panel), rownames(marker.mat))
-    marker.mat = marker.mat[common.genes, ]		
-
-    if (dim(marker.mat)[1] == 0) {
-        print("No markers are left")
-        return()
-    }    
-    
-    
-    print("Computing significance scores")
-    set.seed(0)
-    Z = apply(marker.mat, 2, function(x) {
-		mask = (x != 0)
-		if(sum(mask) < 3) {
-			return(rep(0, nrow(archetype.panel)))
-		}
-		markers = rownames(marker.mat)[mask]
-        
-        A = as.matrix(archetype.panel[, markers])
-        sgn = sign(x[mask])
-        stat = A %*% sgn
-        
-        rand.stats = sapply(1:rand.sample.no, function(i) {
-            rand.samples = sample.int(dim(archetype.panel)[2], sum(mask))
-            rand.A = as.matrix(archetype.panel[, rand.samples])
-            rand.stat = rand.A %*% sgn
-        })
-        
-        cell.zscores = as.numeric((stat - apply(rand.stats, 1, mean))/apply(rand.stats, 1, sd))
-        
-        return(cell.zscores)
-    })
-    
-    Z[is.na(Z)] = 0
-    Labels = colnames(Z)[apply(Z, 1, which.max)]
-    
-    L = colnames(marker.mat)
-    L = L[L %in% Labels]
-    Labels = factor(Labels, levels = L)
-    Labels.conf = apply(Z, 1, max)
-    
-    names(Labels) = rownames(archetype.panel)
-    names(Labels.conf) = rownames(archetype.panel)
-    rownames(Z) = rownames(archetype.panel)
-    
-    out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
-    
-    return(out.list)
-}
-
-
-
-annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marker.genes, rand.sample.no = 1000) {
-	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
-	if(length(idx) == 0) {
-		R.utils::printf('Annotation %s not found\n', annotation.name)
-		return(ACTIONet.out)
-	}
+annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluster, marker.genes, rand.sample.no = 1000) {
+	cl.idx = which(names(ACTIONet.out$annotations) == annotation.cluster)
+	if(length(cl.idx) == 0) {
+		R.utils::printf('Error in correct.cell.labels: annotation.cluster "%s" not found\n', annotation.cluster)
+		return(ACTIONet)
+	}		
+	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels    
+	clusters = preprocess.labels(clusters)
 	
-	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-	
-	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
-		print("Please run compute.annotations.feature.specificity() first")
-		return()		
+	if( is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile) ) {
+		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation.cluster)
 	}
-	X = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
-	clusters = ACTIONet.out$annotations[[idx]]$Labels
-    
+	X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+	# colnames(X) = ACTIONet.out$annotations$Leiden$labelEnrichment$fullLabels
+
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
         GS.names = sapply(1:length(GS), function(i) sprintf("Celltype %s", i))
@@ -311,17 +288,7 @@ annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marke
         return()
     }
     
-    #print("Computing signifcance of genes in cluster")
-    #X = compute.annotations.feature.specificity(sce, clusters)
-    
-    if (is.null(X)) {
-        print("Cannot compute cluster DE. Returning")
-        return()
-    }
     expression.panel = Matrix::t(X)
-    
-    #colnames(expression.panel) = rownames(sce)
-    
     
     IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
     
@@ -347,21 +314,27 @@ annotate.clusters.using.markers <- function(ACTIONet.out, annotation.name, marke
         return(cell.zscores)
     })
     
-    clusterLabels = factor(names(marker.genes)[apply(Z, 1, which.max)], levels = names(marker.genes))
-    cellLabels = factor(clusterLabels[clusters], levels = levels(clusterLabels))
+    
+    Annot = names(marker.genes)
+    
+    clusterLabels = Annot[apply(Z, 1, which.max)]
+   
+    cellLabels = match(clusterLabels[clusters], Annot)
+    names(cellLabels) = clusterLabels[clusters]
     
     fullLabels = sapply(sort(unique(clusters)), function(i) {
         return(sprintf("Cluster %d (%s)", i, clusterLabels[[i]]))
     })
-    fullLabels = factor(fullLabels, levels = fullLabels)
-    
-    cellFullLabels = factor(fullLabels[clusters], levels = levels(fullLabels))
-    
-    res = list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = Z, 
-        Cluster.DE = X)
-    return(res)
-}
 
+    cellFullLabels = match(fullLabels[clusters], fullLabels)
+    names(cellFullLabels) = fullLabels[clusters]
+    
+    res = list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = Z)
+    
+    ACTIONet.out$annotations[[cl.idx]]$markerEnrichment = res
+    
+    return(ACTIONet.out)
+}
 
 
 
@@ -463,7 +436,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_
 
 	time.stamp = as.character(Sys.time())
 	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
+		annotation.name = sprintf('InferredCelltypes_%s', time.stamp)
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
@@ -484,20 +457,29 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
 	} else {
 		cell.scores.mat = ACTIONet.out$reconstruct.out$H_stacked
 	}    
-    cs = Matrix::colSums(cell.scores.mat)
-    cs[cs == 0] = 1
-    cell.scores.mat = t(scale(cell.scores.mat, center = F, scale = cs))
-    
+	cs = Matrix::colSums(cell.scores.mat)
+	cs[cs == 0] = 1
+	cell.scores.mat = t(scale(cell.scores.mat, center = F, scale = cs))
 
-    if (ncol(Enrichment) == ncol(cell.scores.mat)) {
+    if (nrow(Enrichment) != ncol(cell.scores.mat)) {
 		print("Flipping enrichment matrix")
         Enrichment = t(Enrichment)
     }
 
 
-	Z = (Enrichment - mean(Enrichment)) / sd(Enrichment)
-	Enrichment = 1 / (1 + exp(-Z))
+	#Z = (Enrichment - mean(Enrichment)) / sd(Enrichment)
+	#Enrichment = 1 / (1 + exp(-3*Z))
+    #Enrichment[Enrichment < 0] = 0
+    if(min(Enrichment) < 0) {
+		Enrichment = exp(Enrichment)
+		#Enrichment = 1 / (1 + exp(-3*Enrichment/sd(Enrichment))
+	}
+	if( (min(Enrichment) >= 0) & (max(Enrichment) > 100)) {
+		Enrichment = log1p(Enrichment)	
+	} 
 	Enrichment[is.na(Enrichment)] = 0
+	#Enrichment = t(apply(Enrichment, 1, function(x) x / max(x)))
+
 	
 	rs = sqrt(Matrix::rowSums(Enrichment))
 	rs[rs == 0] = 1
@@ -520,25 +502,23 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
 annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL) {
     cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment)
     
-    cell.Labels = colnames(cell.Enrichment.mat)[apply(cell.Enrichment.mat, 1, which.max)]
-    cell.Labels.factor = factor(cell.Labels)
+    cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
+    names(cell.Labels) = colnames(cell.Enrichment.mat)[cell.Labels]
     cell.Labels.conf = apply(cell.Enrichment.mat, 1, max)
     
 
-    names(cell.Labels.factor) = ACTIONet.out$log$cells   
-	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
 
 	time.stamp = as.character(Sys.time())
 	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
+		annotation.name = sprintf('InferredCelltypes_%s', time.stamp)
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
-	res = list(Labels = cell.Labels.factor, Labels.confidence = cell.Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.from.archetype.enrichment", Enrichment = cell.Enrichment.mat)
+	res = list(Labels = cell.Labels, Labels.confidence = cell.Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.from.archetype.enrichment", Enrichment = cell.Enrichment.mat)
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
 	eval(parse(text=cmd))
@@ -557,52 +537,43 @@ annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.ge
 }
 
 
-prioritize.celltypes <- function(ACTIONet.out, species = "Human", min.score = 3, plot = T) {
-	if(tolower(species) == "human") {
-		data("CellMarkerDB_human")
-		CellMarker.annot.out = annotate.archetypes.using.markers.fromMatrix(ACTIONet.out, CellMarkerDB_human, core = T)
-	} else if(tolower(species) == "mouse"){
-		data("CellMarkerDB_mouse")
-		CellMarker.annot.out = annotate.archetypes.using.markers.fromMatrix(ACTIONet.out, CellMarkerDB_mouse, core = T)
-	} else {
-		R.utils::printf("Unknown species: %s\n", species)
+prioritize.celltypes <- function(ACTIONet.out, species = "Human", plot = T) {
+    if( !('unification.out' %in% names(ACTIONet.out)) ) {
+		print('Error in plot.ACTIONet.gene.view: "unification.out" is not in ACTIONet.out. Please run unify.cell.states() first.')
+		return()
 	}
 	
+	DE.profile = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
+	if(tolower(species) == "human") {
+		data("CellMarkerDB_human")
+		marker.genes = apply(CellMarkerDB_human, 2, function(x) intersect(rownames(DE.profile), rownames(CellMarkerDB_human)[x > 0]))
+	} else if(tolower(species) == "mouse"){
+		data("CellMarkerDB_mouse")
+		marker.genes = apply(CellMarkerDB_mouse, 2, function(x) intersect(rownames(DE.profile), rownames(CellMarkerDB_mouse)[x > 0]))
+	} else {
+		R.utils::printf("Unknown species: %s\n", species)
+		return()
+	}
+	CellMarker.annot.out = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, core = T)
+	
+	
 	CellMarker.Enrichment = t(CellMarker.annot.out$Enrichment)
-	CellMarker.Enrichment[CellMarker.Enrichment < 0] = 0
-	x = sort(CellMarker.Enrichment[CellMarker.Enrichment > 0], decreasing = T)
-	nnz = round(sum(x^2)^2 / sum(x^4))
-	x.threshold = x[nnz]
-	mask = (apply(CellMarker.Enrichment, 1, max) > x.threshold)
+	
+	idx = sort(unique(apply(CellMarker.Enrichment, 2, which.max)))	
+	selected.celltypes = rownames(CellMarker.Enrichment)[idx]
+	genesets = marker.genes[selected.celltypes]
+		
 
-
-	subCellMarker.Enrichment = t(CellMarker.annot.out$Enrichment[, mask])
-	rows = sort(unique(apply(subCellMarker.Enrichment, 2, which.max)))
-	selected.celltypes = rownames(subCellMarker.Enrichment)[rows]
-	selected.marker.genes = apply(CellMarkerDB_human[, selected.celltypes], 2, function(x) rownames(CellMarkerDB_human)[x > 0])
-	
-	
-# 	CellMarker.Enrichment = t(scale(t(CellMarker.annot.out$Enrichment)))
-# 	
-# 	CC = cor(CellMarker.Enrichment)
-# 	diag(CC) = 0
-# 	
-# #	max.vals = apply(scale(t(CellMarker.Enrichment)), 1 , max)
-# 	max.vals = apply(CellMarker.Enrichment, 2 , max)
-# 	
-# 	CC.clusters = signed_cluster(as(CC, 'sparseMatrix'), seed = 0)
-# 	IDX = split(1:length(CC.clusters), CC.clusters)
-# 	scores = sapply(IDX, function(idx) {median(max.vals[idx])})
-# 	scores[scores < 0] = 0
-# 	
-# 	nnz = round( (sum(scores^2)^2) / (sum(scores^4)) )
-# 	
-# 	perm = order(scores, decreasing = T)[1:nnz]
-# 	ordered.labels = sapply(IDX[perm], function(idx) {  colnames(CellMarker.Enrichment)[idx[which.max(max.vals[idx])]]  })
-# 	
-# 	df = data.frame(Celltype = ordered.labels, Score = scores[perm])
-	
 	if(plot == T) {
+		CellMarker.Enrichment[CellMarker.Enrichment < 0] = 0
+		x = sort(CellMarker.Enrichment[CellMarker.Enrichment > 0], decreasing = T)
+		nnz = round(sum(x^2)^2 / sum(x^4))
+		x.threshold = x[nnz]
+		mask = (apply(CellMarker.Enrichment, 1, max) > x.threshold)
+
+
+		subCellMarker.Enrichment = t(CellMarker.annot.out$Enrichment[, mask])
+		rows = sort(unique(apply(subCellMarker.Enrichment, 2, which.max)))
 		require(RColorBrewer)
 		require(ComplexHeatmap)
 		gradPal = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
@@ -610,8 +581,7 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", min.score = 3,
 		show(ht)
 	}
 	
-	res = list(selected.marker.genes = selected.marker.genes, Enrichment = CellMarker.Enrichment, subEnrichment = CellMarker.Enrichment[names(selected.marker.genes), ])
-
+	res = list(Enrichment = CellMarker.Enrichment, suggested.markers = genesets)
 	return(res)
 }
 

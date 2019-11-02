@@ -502,3 +502,55 @@ combine.logPvals <- function(logPvals, top.len = NULL, base = 10) {
     return(combbined.log.pvals)
 }
 
+
+preprocess.labels <- function(labels) {
+	if(is.null(labels)) {
+		return(NULL)
+	}
+	if( (length(labels) == 1) & is.character(labels)) {
+		idx = which(names(ACTIONet.out$annotations) == labels)
+		if(length(idx) == 0) {
+			R.utils::printf('Error preprocess.labels: annotation.name %s not found\n', labels)
+			return(NULL)
+		}		
+		labels = ACTIONet.out$annotations[[idx]]$Labels
+	}
+	
+	if((length(labels) > 1) & is.character(labels)) {
+		labels = factor(labels)
+	}
+	
+	if(is.factor(labels)) {
+		v = as.numeric(labels)
+		names(v) = levels(labels)[v]		
+		labels = v
+	}
+	if(is.matrix(labels)) {
+		L = as.numeric(labels)
+		names(L) = names(labels)
+		labels = L
+	} 
+	
+	if( is.null(names(labels)) ) {
+		names(labels) = as.character(labels)
+	}
+	
+	return(labels)
+}
+
+gen.colors <- function(Pal, color.no, plot.cols) {
+    if (length(Pal) < total.colors) {
+        R.utils::printf("Reached max colors (%d). Returning original colors", length(Pal))
+        return(Pal)
+    }
+    colors.RGB = col2rgb(Pal)/256
+    colors.Lab = grDevices::convertColor(color = t(arch.RGB), from = "sRGB", to = "Lab")
+    X = colors.Lab
+    color.cent = kmeans(X, color.no)$centers
+    new.colors = rgb(grDevices::convertColor(color = color.cent, from = "Lab", to = "sRGB"))
+    if (plot.cols) 
+        scales::show_col(new.colors)
+    
+    return(new.colors)
+}
+
