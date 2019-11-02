@@ -7,9 +7,9 @@ add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name
 	if(length(cell.annotations) != length(ACTIONet.out$log$cells)) {
 		print("Error: Number of elemebts in the cell.annotations should match with the number of cells in ACTIONet.out$log$cells.")
 		return(ACTIONet.out)
-	} else {
-		names(cell.annotations) = ACTIONet.out$log$cells   	
-	}
+	} 
+
+	cell.annotations = preprocess.labels(cell.annotations)
 	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -30,6 +30,34 @@ add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name
 	
     return(ACTIONet.out)	
 }
+
+add.batch.cell.annotations <- function(ACTIONet.out, annotations.df) {	
+	for(annotation.name in colnames(annotations.df)) {
+		labels = annotations.df[, annotation.name]
+		labels = preprocess.labels(labels)
+		ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation.name)
+	}
+	
+	return(ACTIONet.out)
+}
+
+extract.all.annotations <- function(ACTIONet.out) {
+	if(length(ACTIONet.out$annotations)) {
+		return(DataFrame())
+	}
+	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(annotation) {
+		labels = annotation$Labels
+
+		labels = preprocess.labels(labels)
+		Annot = sort(unique(names(labels)))
+		Annot = Annot[order(labels[match(Annot, names(labels))])]
+		Labels = factor(names(labels), Annot)
+	})))
+	
+	rownames(annotations.df) = ACTIONet.out$log$cells
+	return(annotations.df)
+}
+
 
 
 annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no = 1000, core = T) {
@@ -682,16 +710,4 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
     return(ACTIONet.out)	
 }
 
-extract.all.annotations <- function(ACTIONet.out) {
-	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(annotation) {
-		labels = annotation$Labels
 
-		labels = preprocess.labels(labels)
-		Annot = sort(unique(names(labels)))
-		Annot = Annot[order(labels[match(Annot, names(labels))])]
-		Labels = factor(names(labels), Annot)
-	})))
-	
-	rownames(annotations.df) = ACTIONet.out$log$cells
-	return(annotations.df)
-}
