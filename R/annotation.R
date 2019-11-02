@@ -682,3 +682,16 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
     return(ACTIONet.out)	
 }
 
+extract.all.annotations <- function(ACTIONet.out) {
+	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(annotation) {
+		labels = annotation$Labels
+
+		labels = preprocess.labels(labels)
+		Annot = sort(unique(names(labels)))
+		Annot = Annot[order(labels[match(Annot, names(labels))])]
+		Labels = factor(names(labels), Annot)
+	})))
+	
+	rownames(annotations.df) = ACTIONet.out$log$cells
+	return(annotations.df)
+}

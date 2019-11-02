@@ -673,17 +673,3 @@ infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, do
 	return(ACTIONet.out)
 }
 
-
-extract.all.annotations <- function(ACTIONet.out) {
-	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(X) {
-		Labels = rep(NA, length(ACTIONet.out$log$cells))
-		
-		common.cells = intersect(ACTIONet.out$log$cells, X$cells)
-		idx1 = match(common.cells, ACTIONet.out$log$cells)
-		idx2 = match(common.cells, X$cells)
-		Labels[idx1] = as.character((X$Labels[idx2]))
-		Labels = factor(Labels)
-	})))
-	
-	return(annotations.df)
-}
