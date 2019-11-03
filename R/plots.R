@@ -21,8 +21,8 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
-	node.size = 1, CPal = ACTIONet.color.bank, add.states = F, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = FALSE, legend.pos = "bottomright") {
+	node.size = 1, CPal = ACTIONet.color.bank, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F) {
     
     node.size = node.size * 0.5
     
@@ -82,7 +82,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         centroids = t(sapply(Annot, function(l) {
             idx = which(names(labels) == l)
             if(length(idx) <= 10) {
-				return(as.numeric(Matrix::rowMeans(as.matrix(coors[idx, ]))))
+				return(as.numeric(Matrix::colMeans(as.matrix(coors[idx, ]))))
 			} 
             sub.coors = coors[idx, ]
             D = as.matrix(dist(sub.coors))
