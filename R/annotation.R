@@ -42,8 +42,8 @@ add.batch.cell.annotations <- function(ACTIONet.out, annotations.df) {
 }
 
 extract.all.annotations <- function(ACTIONet.out) {
-	if(length(ACTIONet.out$annotations)) {
-		return(DataFrame())
+	if(length(ACTIONet.out$annotations) == 0) {
+		return(DataFrame(row.names = ACTIONet.out$log$cells))
 	}
 	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(annotation) {
 		labels = annotation$Labels
