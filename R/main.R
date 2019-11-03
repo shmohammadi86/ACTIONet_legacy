@@ -486,117 +486,65 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     return(imputed.gene.expression)
 }
 
-correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, max.iter = 3, double.stochastic = FALSE, update.LFR.threshold = 3) {
-	ACTIONet = ACTIONet.out$ACTIONet
-
-	# Directely passed a label vector
-	if(length(annotation.in) > 1) {
-		Labels = annotation.in
-	} else {	
-		idx = which(names(ACTIONet.out$annotations) == annotation.in)
-		if(length(idx) == 0) {
-			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
-			return(ACTIONet)
-		}		
-		Labels = ACTIONet.out$annotations[[idx]]$Labels    
-	}
-	Labels = preprocess.labels(Labels)
+assess.labels <- function(P, Labels) {
+    counts = table(Labels)
+    p = counts/sum(counts)
+    X = sapply(names(p), function(label) {
+        x = as.numeric(Matrix::sparseVector(x = 1, i = which(Labels == label), length = length(Labels)))
+    })
     
-    A = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
-    eps = 1e-16
-    rs = Matrix::rowSums(A)
-    P = sparseMatrix(i = A@i + 1, j = A@j + 1, x = A@x/rs[A@i + 1], dims = dim(A))
-    if (double.stochastic == TRUE) {
-        w = sqrt(Matrix::colSums(P) + eps)
-        W = P %*% Matrix::Diagonal(x = 1/w, n = length(w))
-        P = W %*% Matrix::t(W)
-    }
+    Exp = array(1, nrow(P)) %*% t(p)
+    
+    Obs = as(P %*% X, "dgTMatrix")
+    
+    # Need to rescale due to missing values within the neighborhood
+    rs = Matrix::rowSums(Obs)
+    Obs = Matrix::sparseMatrix(i = Obs@i + 1, j = Obs@j + 1, x = Obs@x/rs[Obs@i + 1], dims = dim(Obs))
+    
+    Lambda = Obs - Exp
     
     
-    for (it in 1:max.iter) {
-        R.utils::printf("iter %d\n", it)
-        counts = table(Labels)
-        
-        p = counts/sum(counts)
-        
-        X = sapply(names(p), function(celltype) {
-            x = as.numeric(Matrix::sparseVector(x = 1, i = which(Labels == celltype), length = length(Labels)))
-        })
-        
-        Exp = array(1, nrow(A)) %*% t(p)
-        
-        # Need to rescale due to missing values within the neighborhood
-        Obs = as(P %*% X, "dgTMatrix")
-        
-        rs = Matrix::rowSums(Obs)
-        Obs = Matrix::sparseMatrix(i = Obs@i + 1, j = Obs@j + 1, x = Obs@x/rs[Obs@i + 1], dims = dim(Obs))
-        
-        Lambda = Obs - Exp
-        
-        
-        w2 = Matrix::rowSums(P^2)
-        Nu = w2 %*% t(p)
-        
-        a = as.numeric(qlcMatrix::rowMax(P)) %*% t(array(1, length(p)))
-        
-        
-        logPval = (Lambda^2)/(2 * (Nu + (a * Lambda)/3))
-        logPval[Lambda < 0] = 0
-        logPval[is.na(logPval)] = 0
-        
-        X = Matrix::t(logPval)
-        max.val = apply(X, 2, max)
-        
-        max.val.second = X[(0:(ncol(X) - 1)) * nrow(X) + as.numeric(Labels)]
-        max.idx = apply(logPval, 1, which.max)
-        
-        ratio = log2(max.val.second/max.val)
-        ratio[is.na(ratio)] = 0
-        
-        newLabels = factor(levels(Labels)[max.idx], levels = levels(Labels))
-        mask = (newLabels != Labels) & (ratio < -update.LFR.threshold)
-        Labels[mask] = newLabels[mask]
-    }
+    w2 = Matrix::rowSums(P^2)
+    Nu = w2 %*% t(p)
+    
+    a = as.numeric(qlcMatrix::rowMax(P)) %*% t(array(1, length(p)))
     
     
-   	if(! ('annotations' %in% names(ACTIONet.out)) ) {
-		ACTIONet.out$annotations = list()
-	}
-
-	time.stamp = as.character(Sys.time())
-	if(is.null(annotation.out)) {
-		annotation.out = sprintf('CorrectedAnnotation_%s', time.stamp)
-	}
-	h = hashid_settings(salt = time.stamp, min_length = 8)
-	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
-	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
-	eval(parse(text=cmd))    
-	
-	return(ACTIONet.out)
-	
+    logPval = (Lambda^2)/(2 * (Nu + (a * Lambda)/3))
+    logPval[Lambda < 0] = 0
+    logPval[is.na(logPval)] = 0
+    
+    logPval = as.matrix(logPval)
+    
+    updated.Labels = apply(logPval, 1, which.max)
+    updated.Labels.conf = apply(logPval, 1, max)
+    
+    res = list(Labels = updated.Labels, Labels.confidence = updated.Labels.conf, Enrichment = logPval)
+    
+    return(res)
 }
 
 
-infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, double.stochastic = FALSE, max_iter = 3) {
-	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
+infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, double.stochastic = FALSE, max_iter = 3) {
+ 	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
     
     
 	# Directely passed a label vector
 	if(length(annotation.in) > 1) {
 		Labels = annotation.in
-	} else {	
+	} else {
 		idx = which(names(ACTIONet.out$annotations) == annotation.in)
 		if(length(idx) == 0) {
 			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
 			return(ACTIONet)
-		}		
-		Labels = ACTIONet.out$annotations[[idx]]$Labels    
+		}
+		Labels = ACTIONet.out$annotations[[idx]]$Labels
 	}
 	Labels = preprocess.labels(Labels)
-
+	
+	Annot = sort(unique(Labels))
+	names(Annot) = names(Labels)[match(Annot, Labels)]
+    Labels = as.numeric(Labels)
     
     A = as(Adj, "dgTMatrix")
     eps = 1e-16
@@ -614,46 +562,23 @@ infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, do
     i = 1
     while (sum(na.mask) > 0) {
         R.utils::printf("iter %d\n", i)
-        counts = table(Labels)
-        p = counts/sum(counts)
-        X = sapply(names(p), function(celltype) {
-            x = as.numeric(Matrix::sparseVector(x = 1, i = which(Labels == celltype), length = length(Labels)))
-        })
+    	
+        new.Labels = assess.labels(P, Labels)
         
-        Exp = array(1, nrow(A)) %*% t(p)
-        
-        Obs = as(P %*% X, "dgTMatrix")
-        
-        # Need to rescale due to missing values within the neighborhood
-        rs = Matrix::rowSums(Obs)
-        Obs = Matrix::sparseMatrix(i = Obs@i + 1, j = Obs@j + 1, x = Obs@x/rs[Obs@i + 1], dims = dim(Obs))
-        
-        Lambda = Obs - Exp
-        
-        
-        w2 = Matrix::rowSums(P^2)
-        Nu = w2 %*% t(p)
-        
-        a = as.numeric(qlcMatrix::rowMax(P)) %*% t(array(1, length(p)))
-        
-        
-        logPval = (Lambda^2)/(2 * (Nu + (a * Lambda)/3))
-        logPval[Lambda < 0] = 0
-        logPval[is.na(logPval)] = 0
-        updated.Labels = levels(Labels)[apply(logPval, 1, which.max)]
-        updated.Labels.conf = apply(logPval, 1, max)
-        
-        mask = na.mask & (updated.Labels.conf > 3 + log(length(Labels)))
-        Labels[mask] = updated.Labels[mask]
-        
+        mask = na.mask & (new.Labels$Labels.confidence > 3 + log(length(Labels)))
+        Labels[mask] = new.Labels$Labels[mask]
+
         na.mask = is.na(Labels)
         if (i == max_iter) 
             break
         
         i = i + 1
     }
-    
-    
+    new.Labels = assess.labels(P, Labels)
+    mask = na.mask & (new.Labels$Labels.confidence > 3 + log(length(Labels)))
+    Labels[is.na(Labels)] = new.Labels$Labels[is.na(Labels)]
+    names(Labels) = names(Annot)[Labels]
+
    	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -665,7 +590,7 @@ infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, do
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
-	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	res = list(Labels = Labels, Labels.confidence = new.Labels$Labels.confidence, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
 	eval(parse(text=cmd))    
@@ -673,3 +598,67 @@ infer.missing.labels <- function(ACTIONet.out, annotation.in, annotation.out, do
 	return(ACTIONet.out)
 }
 
+
+correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3) {
+ 	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
+    
+    
+	# Directely passed a label vector
+	if(length(annotation.in) > 1) {
+		Labels = annotation.in
+	} else {
+		idx = which(names(ACTIONet.out$annotations) == annotation.in)
+		if(length(idx) == 0) {
+			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
+			return(ACTIONet)
+		}
+		Labels = ACTIONet.out$annotations[[idx]]$Labels
+	}
+	Labels = preprocess.labels(Labels)
+	
+	Annot = sort(unique(Labels))
+	names(Annot) = names(Labels)[match(Annot, Labels)]
+    Labels = as.numeric(Labels)
+    
+    A = as(Adj, "dgTMatrix")
+    eps = 1e-16
+    rs = Matrix::rowSums(A)
+    P = sparseMatrix(i = A@i + 1, j = A@j + 1, x = A@x/rs[A@i + 1], dims = dim(A))
+    if (double.stochastic == TRUE) {
+        w = sqrt(Matrix::colSums(P) + eps)
+        W = P %*% Matrix::Diagonal(x = 1/w, n = length(w))
+        P = W %*% Matrix::t(W)
+    }
+    
+	for(i in 1:max_iter) {    
+        R.utils::printf("iter %d\n", i)
+    	
+        new.Labels = assess.labels(P, Labels)
+        Enrichment = new.Labels$Enrichment
+        curr.enrichment = sapply(1:nrow(Enrichment), function(i) Enrichment[i, Labels[i]])
+        
+        Diff.LFR = log2((new.Labels$Labels.confidence / curr.enrichment))
+        Diff.LFR[is.na(Diff.LFR)] = 0
+
+        Labels[Diff.LFR > LFR.threshold] = new.Labels$Labels[Diff.LFR > LFR.threshold]
+    }
+    names(Labels) = names(Annot)[Labels]
+
+   	if(! ('annotations' %in% names(ACTIONet.out)) ) {
+		ACTIONet.out$annotations = list()
+	}
+
+	time.stamp = as.character(Sys.time())
+	if(is.null(annotation.out)) {
+		annotation.out = sprintf('InferredMissingLabels_%s', time.stamp)
+	}
+	h = hashid_settings(salt = time.stamp, min_length = 8)
+	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
+	
+	res = list(Labels = Labels, Labels.confidence = new.Labels$Labels.confidence, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
+	eval(parse(text=cmd))    
+	
+	return(ACTIONet.out)
+}
