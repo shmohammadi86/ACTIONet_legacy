@@ -71,10 +71,6 @@ extract.all.annotations <- function(ACTIONet.out) {
 
 
 annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, rand_perm_no = 1000, core = T) {
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels)
-    }
-    
     if(core == T) {
 		profile = ACTIONet.out$unification.out$H.core		
 	} else {
@@ -90,7 +86,7 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, ran
 			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
 			return(ACTIONet.out)
 		}		
-		clusters = ACTIONet.out$annotations[[idx]]$Labels    
+		Labels = ACTIONet.out$annotations[[idx]]$Labels    
 	}
 	Labels = preprocess.labels(ACTIONet.out, Labels)
 
@@ -164,7 +160,12 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
         return(logPval)
     })
     
+
+    cl.Annot = names(clusters)[match(sort(unique(clusters)), clusters)]
     Annot = names(Labels)[match(sort(unique(Labels)), Labels)]
+
+	colnames(logPvals) = cl.Annot
+	rownames(logPvals) = Annot
     
     clusterLabels = Annot[apply(logPvals, 2, which.max)]
     
