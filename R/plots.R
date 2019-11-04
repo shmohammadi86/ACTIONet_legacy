@@ -140,8 +140,8 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
         vCol.border = colorspace::darken(vCol, 0.5)
     }
         
-    scatterplot3js(x = coor[, 1], y = coor[, 2], z = coor[, 3], axis.scales = FALSE, size = node.size, axis = F, grid = F, color = vCol, 
-        stroke = vCol.border, bg = "black")
+    scatterplot3js(x = coor[, 1], y = coor[, 2], z = coor[, 3], axis.scales = FALSE, size = node.size, axis = F, grid = F, color = as.character(vCol), 
+        stroke = as.character(vCol.border), bg = "black")
 }
 
 
