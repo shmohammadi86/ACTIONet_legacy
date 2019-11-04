@@ -144,7 +144,7 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
 			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
 			return(ACTIONet.out)
 		}		
-		clusters = ACTIONet.out$annotations[[idx]]$Labels    
+		Labels = ACTIONet.out$annotations[[idx]]$Labels    
 	}
 	Labels = preprocess.labels(ACTIONet.out, Labels)
 
@@ -184,7 +184,6 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
     
     return(ACTIONet.out)
 }
-
 
 annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = T) {
     require(ACTIONet)
