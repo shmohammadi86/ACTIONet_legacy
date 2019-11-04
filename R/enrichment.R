@@ -401,7 +401,7 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
 	}
 	
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-	Labels = factor(ACTIONet.out$annotations[[idx]]$Labels)
+	Labels = (ACTIONet.out$annotations[[idx]]$Labels)
     
     X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
     
