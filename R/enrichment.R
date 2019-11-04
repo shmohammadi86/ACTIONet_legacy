@@ -401,9 +401,19 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
 	}
 	
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-	Labels = (ACTIONet.out$annotations[[idx]]$Labels)
+
+	Labels = ACTIONet.out$annotations[[idx]]$Labels
+	
+	labels = as.numeric(Labels)
+	labels.char = as.character(Labels)
+	
+	Annot = sort(unique(labels.char))
+	Annot.levels = labels[match(Annot, labels.char)]
+	perm = order(Annot.levels)
+	Annot.sorted = Annot.levels[perm]
+	
     
-    X = t(sapply(levels(Labels), function(l) as.numeric(Labels == l)))
+    X = t(Annot.sorted, function(l) as.numeric(names(Labels) == l)))
     
     
     diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)

@@ -549,3 +549,25 @@ gen.colors <- function(Pal, color.no, plot.cols) {
     return(new.colors)
 }
 
+doubleNorm <- function(Enrichment) {
+    if(min(Enrichment) < 0) {
+		Enrichment = exp(Enrichment)
+	}
+	if( (min(Enrichment) >= 0) & (max(Enrichment) > 100)) {
+		Enrichment = log1p(Enrichment)	
+	} 
+	Enrichment[is.na(Enrichment)] = 0
+
+	rs = sqrt(Matrix::rowSums(Enrichment))
+	rs[rs == 0] = 1
+	D_r = Matrix::Diagonal(nrow(Enrichment), 1/rs)
+	
+	cs = sqrt(Matrix::colSums(Enrichment))
+	cs[cs == 0] = 1
+	D_c = Matrix::Diagonal(ncol(Enrichment), 1/cs)
+	
+	Enrichment.scaled = as.matrix(D_r %*% Enrichment %*% D_c)
+	
+	Enrichment.scaled = Enrichment.scaled / max(Enrichment.scaled)
+	return(Enrichment.scaled)
+}
