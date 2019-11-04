@@ -296,26 +296,28 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
     
     axis <- list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE)
     
-    node.data$vCol = vCol
-    
     if(threeD == TRUE) {
 		if(is.null(Annot)) {
 		    node.data$vCol = vCol
+			node.data$vCol.border = vCol.border
 			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d", showlegend = FALSE)		
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis)
 		} else {
+			border.Pal = colorspace::darken(Pal, 0.5)
 		    node.data$type = factor(names(labels), levels = Annot)
-			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d")		
+			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d")		
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
 		}		
 	} else {				
 		if(is.null(Annot)) {
 		    node.data$vCol = vCol
+			node.data$vCol.border = vCol.border
 			network <- plot_ly(node.data, x = ~x, y = ~y, opacity = 1, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text", showlegend = FALSE)
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis)
 		} else {
+			border.Pal = colorspace::darken(Pal, 0.5)
 		    node.data$type = factor(names(labels), levels = Annot)
-			network <- plot_ly(node.data, x = ~x, y = ~y, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
+			network <- plot_ly(node.data, x = ~x, y = ~y, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
 		}
 	}
