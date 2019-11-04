@@ -413,7 +413,7 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
 	Annot.sorted = Annot.levels[perm]
 	
     
-    X = t(Annot.sorted, function(l) as.numeric(names(Labels) == l)))
+    X = t(Annot.sorted, function(l) as.numeric(names(Labels) == l))
     
     
     diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
