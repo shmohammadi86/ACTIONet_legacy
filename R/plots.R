@@ -21,8 +21,8 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
-	node.size = 1, CPal = ACTIONet.color.bank, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F, title = "") {
+	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "") {
     
     node.size = node.size * 0.5
     
@@ -519,8 +519,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, max.update.iter = 3, CPal = 
     plot(sketch.graph, main = title)
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter = 3, CPal = ACTIONet.color.bank, node.size = 3, adjust.node.size = FALSE, 
-    alpha_val = 0.9, export_path = NA, prune = TRUE) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter = 3, CPal = ACTIONet.color.bank, node.size = 3, adjust.node.size = FALSE,  alpha_val = 0.9, export_path = NA, prune = FALSE) {
     require(igraph)
     add.vertex.shape("fcircle", clip = igraph.shape.noclip, plot = mycircle, parameters = list(vertex.frame.color = 1, vertex.frame.width = 1))
     

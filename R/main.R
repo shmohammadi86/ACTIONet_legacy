@@ -1,4 +1,4 @@
-run.ACTIONet <- function(sce, k_max = 30, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
+run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
     batch.lambda = 1, k_min = 2, n_epochs = 100, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
     require(Matrix)
