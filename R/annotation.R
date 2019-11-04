@@ -9,7 +9,7 @@ add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name
 		return(ACTIONet.out)
 	} 
 
-	cell.annotations = preprocess.labels(cell.annotations)
+	cell.annotations = preprocess.labels(ACTIONet.out, cell.annotations)
 	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -33,8 +33,18 @@ add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name
 
 add.batch.cell.annotations <- function(ACTIONet.out, annotations.df) {	
 	for(annotation.name in colnames(annotations.df)) {
-		labels = annotations.df[, annotation.name]
-		labels = preprocess.labels(labels)
+		labels = as.numeric(annotations.df[, annotation.name])
+		labels.char = as.character(annotations.df[, annotation.name])
+		
+		Annot = sort(unique(labels.char))
+		Annot.levels = labels[match(Annot, labels.char)]
+		perm = order(Annot.levels)
+		Annot.levels = Annot.levels[perm]
+		names(Annot.levels) = Annot[perm]
+		
+		names(labels) = names(Annot.levels)[labels]
+		
+		labels = preprocess.labels(ACTIONet.out, labels)
 		ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation.name)
 	}
 	
@@ -48,7 +58,7 @@ extract.all.annotations <- function(ACTIONet.out) {
 	annotations.df = DataFrame(as.data.frame(sapply(ACTIONet.out$annotations, function(annotation) {
 		labels = annotation$Labels
 
-		labels = preprocess.labels(labels)
+		labels = preprocess.labels(ACTIONet.out, labels)
 		Annot = sort(unique(names(labels)))
 		Annot = Annot[order(labels[match(Annot, names(labels))])]
 		Labels = factor(names(labels), Annot)
@@ -60,7 +70,7 @@ extract.all.annotations <- function(ACTIONet.out) {
 
 
 
-annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no = 1000, core = T) {
+annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, rand_perm_no = 1000, core = T) {
     if (!is.factor(Labels)) {
         Labels = factor(Labels)
     }
@@ -70,9 +80,24 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no 
 	} else {
 		profile = ACTIONet.out$reconstruct.out$H_stacked
 	}
-    
-    Enrichment.Z = sapply(levels(Labels), function(label) {
-        mask = Labels == label
+
+
+	if(length(annotation.known) > 1) {
+		Labels = annotation.known
+	} else {	
+		idx = which(names(ACTIONet.out$annotations) == annotation.known)
+		if(length(idx) == 0) {
+			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
+			return(ACTIONet.out)
+		}		
+		clusters = ACTIONet.out$annotations[[idx]]$Labels    
+	}
+	Labels = preprocess.labels(ACTIONet.out, Labels)
+
+    Annot = names(Labels)[match(sort(unique(Labels)), Labels)]
+
+    Enrichment.Z = sapply(Annot, function(label) {
+        mask = names(Labels) == label
         class.profile = profile[, mask]
         null.profile = profile[, !mask]
         
@@ -90,9 +115,9 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, Labels, rand_perm_no 
         t.stat = delta.mean/sqrt((sigma_sq.class/N.class) + (sigma_sq.null/N.null))
         return(t.stat)
     })
+
     
-    archetypeLabels = levels(Labels)[apply(Enrichment.Z, 1, which.max)]
-    archetypeLabels = factor(archetypeLabels, levels = levels(Labels))
+    archetypeLabels = Annot[apply(Enrichment.Z, 1, which.max)]
     
     out.list = list(Labels = archetypeLabels, Enrichment = Enrichment.Z)
     
@@ -106,10 +131,10 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.cluster)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in correct.cell.labels: annotation.cluster "%s" not found\n', annotation.cluster)
-		return(ACTIONet)
+		return(ACTIONet.out)
 	}		
 	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels    
-	clusters = preprocess.labels(clusters)
+	clusters = preprocess.labels(ACTIONet.out, clusters)
 
 	if(length(annotation.known) > 1) {
 		Labels = annotation.known
@@ -117,11 +142,11 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
 		idx = which(names(ACTIONet.out$annotations) == annotation.known)
 		if(length(idx) == 0) {
 			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
-			return(ACTIONet)
+			return(ACTIONet.out)
 		}		
 		clusters = ACTIONet.out$annotations[[idx]]$Labels    
 	}
-	Labels = preprocess.labels(Labels)
+	Labels = preprocess.labels(ACTIONet.out, Labels)
 
 
     pop.size = length(Labels)
@@ -270,10 +295,10 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.cluster)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in correct.cell.labels: annotation.cluster "%s" not found\n', annotation.cluster)
-		return(ACTIONet)
+		return(ACTIONet.out)
 	}		
 	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels    
-	clusters = preprocess.labels(clusters)
+	clusters = preprocess.labels(ACTIONet.out, clusters)
 	
 	if( is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile) ) {
 		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation.cluster)
@@ -614,7 +639,8 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", plot = T) {
 }
 
 highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -1) {
-	annot.idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	annot.idx = which(names(ACTIONet.out$annotations) == annotation.name)
+	
 	if(length(annot.idx) == 0) {
 		R.utils::printf('Annotation %s not found\n', annotation.name)
 		return(ACTIONet.out)
@@ -634,6 +660,10 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
         
         sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
         sub.cn = coreness(sub.ACTIONet)
+        if(length(sub.cn) == 1) {
+			cluster.cell.connectivity[[i]] = 1
+			next
+		}
         
         if (mad(sub.cn) > 0) {
             z = (sub.cn - median(sub.cn))/mad(sub.cn)

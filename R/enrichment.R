@@ -321,6 +321,7 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     if(class(rowRanges(sce))[[1]] == "GRanges") {
 		rowRanges(diff.sce) = rowRanges(sce)
 		genome(diff.sce) = genome(sce)
+		values(rowRanges(sce)) = c()
 	} 
     
     return(diff.sce)

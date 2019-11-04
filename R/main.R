@@ -269,17 +269,17 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     ACTIONet.out.pruned$unification.out$assignments.confidence.core = ACTIONet.out.pruned$unification.out$assignments.confidence.core[selected.cells]
 
 	# Update existing cell annotations
-	for(annotation.name in names(ACTIONet.out$annotations)) {
-		X = ACTIONet.out$annotations[[annotation.name]]
+	for(annotation.name in names(ACTIONet.out.pruned$annotations)) {
+		X = ACTIONet.out.pruned$annotations[[annotation.name]]
 		
 		X$Labels = X$Labels[selected.cells]
 		X$Labels.confidence = X$Labels.confidence[selected.cells]
 		X$cells = selected.cells
 		
-		ACTIONet.out$annotations[[annotation.name]] = X
+		ACTIONet.out.pruned$annotations[[annotation.name]] = X
 		
 		if(! is.null(X$highlight) ) {
-			ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name)
+			ACTIONet.out.pruned = highlight.annotations(ACTIONet.out.pruned, annotation.name)
 		}
 	}
     
@@ -540,7 +540,7 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 		}
 		Labels = ACTIONet.out$annotations[[idx]]$Labels
 	}
-	Labels = preprocess.labels(Labels)
+	Labels = preprocess.labels(ACTIONet.out, Labels)
 	
 	Annot = sort(unique(Labels))
 	names(Annot) = names(Labels)[match(Annot, Labels)]
@@ -599,7 +599,7 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 }
 
 
-correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3) {
+correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3, min.cells = 20) {
  	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
     
     
@@ -614,7 +614,8 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 		}
 		Labels = ACTIONet.out$annotations[[idx]]$Labels
 	}
-	Labels = preprocess.labels(Labels)
+	Labels = preprocess.labels(ACTIONet.out, Labels)
+		
 	
 	Annot = sort(unique(Labels))
 	names(Annot) = names(Labels)[match(Annot, Labels)]

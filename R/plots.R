@@ -22,7 +22,7 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
 	node.size = 1, CPal = ACTIONet.color.bank, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F) {
+    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F, title = "") {
     
     node.size = node.size * 0.5
     
@@ -31,7 +31,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     
     coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
     
-	labels = preprocess.labels(labels)
+	labels = preprocess.labels(ACTIONet.out, labels)
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         Annot = NULL
@@ -58,7 +58,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         vCol.border = colorspace::darken(vCol, 0.5)
     }
 
-    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = FALSE, xlab = "", ylab = "")
+    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = FALSE, xlab = "", ylab = "", main = title)
 
 	if(add.states == T) {
 		par(new=TRUE)
@@ -81,8 +81,8 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     if ( add.text == T & (!is.null(Annot)) ) {
         centroids = t(sapply(Annot, function(l) {
             idx = which(names(labels) == l)
-            if(length(idx) <= 10) {
-				return(as.numeric(Matrix::colMeans(as.matrix(coors[idx, ]))))
+            if(length(idx) == 1) {
+				return(as.numeric(coors[idx, ]))
 			} 
             sub.coors = coors[idx, ]
             D = as.matrix(dist(sub.coors))
@@ -112,7 +112,7 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
     coor = cbind(V(ACTIONet)$x3D, V(ACTIONet)$y3D, V(ACTIONet)$z3D)
     
     node.size = node.size * 0.2
-	labels = preprocess.labels(labels)
+	labels = preprocess.labels(ACTIONet.out, labels)
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         add.text = F
@@ -208,7 +208,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
     nV = length(V(ACTIONet))
     node.size = node.size * 5
     
-	labels = preprocess.labels(labels)
+	labels = preprocess.labels(ACTIONet.out, labels)
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         Annot = NULL

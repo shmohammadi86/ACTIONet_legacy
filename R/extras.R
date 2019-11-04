@@ -200,11 +200,6 @@ mycircle <- function(coords, v = NULL, params) {
     })
 }
 
-DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-DEFAULT_SEPS = "cfhistuCFHISTU"
-RATIO_SEPARATORS = 3.5
-RATIO_GUARDS = 12
-
 DECODE = function(hash_str, settings) {
     if (hash_str == "") 
         stop("decode: invalid hashid")
@@ -288,7 +283,7 @@ ENCODE = function(int, settings) {
     return(encoded)
 }
 
-hashid_settings = function(salt, min_length = 0, alphabet = DEFAULT_ALPHABET, sep = DEFAULT_SEPS) {
+hashid_settings = function(salt, min_length = 0, alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", sep = "cfhistuCFHISTU") {
     
     alphabet_vec = unique(strsplit(alphabet, split = "")[[1]])
     sep_vec = unique(strsplit(sep, split = "")[[1]])
@@ -302,7 +297,7 @@ hashid_settings = function(salt, min_length = 0, alphabet = DEFAULT_ALPHABET, se
     }
     
     separator_ = shuffle(separator_, salt)
-    min_separators = ceiling(nchar(alphabet_)/RATIO_SEPARATORS)
+    min_separators = ceiling(nchar(alphabet_)/3.5)
     
     ## if needed get more separators from alphabet ##
     if (nchar(separator_) < min_separators) {
@@ -314,7 +309,7 @@ hashid_settings = function(salt, min_length = 0, alphabet = DEFAULT_ALPHABET, se
     }
     
     alphabet_ = shuffle(alphabet_, salt)
-    num_guards = ceiling(nchar(alphabet_)/RATIO_GUARDS)
+    num_guards = ceiling(nchar(alphabet_)/12)
     
     if (nchar(alphabet_) < 3) {
         guards_ = substring(separator_, 1, num_guards)
@@ -503,7 +498,7 @@ combine.logPvals <- function(logPvals, top.len = NULL, base = 10) {
 }
 
 
-preprocess.labels <- function(labels) {
+preprocess.labels <- function(ACTIONet.out, labels) {
 	if(is.null(labels)) {
 		return(NULL)
 	}
