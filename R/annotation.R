@@ -391,7 +391,7 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
 
 
 
-annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_val = 0.9, rand.sample.no = 100, thread_no = 8, imputation = "PageRank") {
+annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annotation.name = NULL, alpha_val = 0.9, rand.sample.no = 100, thread_no = 8, imputation = "PageRank") {
     require(ACTIONet)
     require(igraph)
     require(Matrix)
@@ -473,16 +473,12 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_
     })
     
     Z[is.na(Z)] = 0
-    Labels = colnames(Z)[apply(Z, 1, which.max)]
+    Labels = apply(Z, 1, which.max)
+    names(Labels) = colnames(Z)[Labels]
     
-    L = names(marker.genes)
-    L = L[L %in% Labels]
-    Labels = factor(Labels, levels = L)
     Labels.conf = apply(Z, 1, max)
     
     
-    names(Labels) = ACTIONet.out$log$cells   
-	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -500,7 +496,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, alpha_
 	eval(parse(text=cmd))
 	
 
-    return(ACTIONet.out)    
+    return(ACTIONet.out)
 }
 
 

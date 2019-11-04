@@ -405,19 +405,20 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
 	Labels = ACTIONet.out$annotations[[idx]]$Labels
 	
 	labels = as.numeric(Labels)
-	labels.char = as.character(Labels)
+	labels.char = names(Labels)
 	
 	Annot = sort(unique(labels.char))
 	Annot.levels = labels[match(Annot, labels.char)]
 	perm = order(Annot.levels)
-	Annot.sorted = Annot.levels[perm]
+	Annot.sorted = Annot[perm]
 	
     
-    X = t(Annot.sorted, function(l) as.numeric(names(Labels) == l))
+    X = t(sapply(Annot.sorted, function(l) as.numeric(names(Labels) == l)))
     
     
     diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
-
+    
+	colnames(diff.sce@assays[["significance"]]) = colnames(diff.sce@assays[["profile"]]) = colnames(diff.sce) = Annot.sorted
 	
 	ACTIONet.out$annotations[[idx]]$DE.profile = diff.sce
 	
