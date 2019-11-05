@@ -82,7 +82,15 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr)    
     
-    ACTIONet.out$log = list(genes = rownames(sce), cells = sce$cell.hashtag, time = Sys.time())
+    if( ('cell.hashtag' %in% names(colData(sce))) ) {
+		cells = sce$cell.hashtag
+	} else if ( !is.null(colnames(sce)) ) {
+		cells = colnames(sce)
+	} else {
+		cellls = as.character(1:ncol(sce))
+	}
+	
+    ACTIONet.out$log = list(genes = rownames(sce), cells = cells, time = Sys.time())
     
     return(ACTIONet.out)
 }

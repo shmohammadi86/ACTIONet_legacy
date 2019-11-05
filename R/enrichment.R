@@ -1,3 +1,79 @@
+Chernoff.enrichment <- function(A, Ind.mat) {
+	print("Running Chernoff.enrichment")
+	
+	if(nrow(A) != nrow(Ind.mat)) {
+		print("Chernoff.Enrichment:: Number of rows do not match");
+		return()		
+	}
+	if(max(A) > 50 & min(A) >= 0) {	
+		print("log-transforming")
+		A = log1p(A)	
+	}
+	
+	X = as(Ind.mat, 'dgCMatrix')
+
+	p_c = Matrix::colMeans(X)
+
+	p_r = Matrix::rowMeans(X)
+	rho = mean(p_r)
+	
+	Obs = as.matrix(Matrix::t(X) %*% A)
+	Exp = as.matrix( p_c %*% ( Matrix::t(p_r) %*% A) ) / rho 
+	Nu = as.matrix( (p_c^2) %*% (Matrix::t(p_r) %*% (A^2)) ) / (rho^2) 
+
+	Lambda = Obs - Exp
+	
+	a = apply(A, 2, max)  
+	logPvals = Lambda^2 / (2*(Nu + (p_c %*% t(a))*Lambda/3))
+	
+	rownames(logPvals) = colnames(X)
+	colnames(logPvals) = colnames(A)
+
+	logPvals[Lambda  < 0] = 0
+	logPvals[is.na(logPvals)] = 0
+	
+	logPvals = logPvals / log(10)
+			
+	return(logPvals)
+}
+
+Chernoff.enrichment.noRowScaling <- function(A, Ind.mat) {
+	if(nrow(A) != nrow(Ind.mat)) {
+		message("Chernoff.enrichment.noRowScaling:: Number of rows do not match");
+		return()		
+	}
+	if(max(A) > 50 & min(A) >= 0) {	
+		A = log(1+A)	
+	}
+		
+	X = as(Ind.mat, 'dgCMatrix')
+
+	p_c = Matrix::colMeans(X)
+
+
+	Obs = as.matrix(Matrix::t(X) %*% A)
+	Exp = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A)))
+	Nu = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A^2)))
+
+	Lambda = Obs - Exp
+
+	a = apply(A, 2, max)
+	ones = array(1, dim = dim(Nu)[1])
+
+	logPvals = Lambda^2 / (2*(Nu + (ones %*% t(a))*Lambda/3))
+
+	
+	rownames(logPvals) = colnames(X)
+	colnames(logPvals) = colnames(A)
+
+	logPvals[Lambda  < 0] = 0
+	logPvals[is.na(logPvals)] = 0
+	
+	logPvals = logPvals / log(10)
+			
+	return(logPvals)
+}
+
 assess.continuous.autocorrelation <- function(ACTIONet.out, variables, rand_perm = 100, num_shuffles = 10000) {
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
@@ -241,31 +317,32 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
     X = ind.mat[idx, ]
     
     # Normalize scores to avoid heavy-tail side-effect(s) pos.scores = DE.profile pos.scores[pos.scores < 0] = 0
-    A = DE.profile #/max(DE.profile)
+    A = DE.profile 
     
+    logPvals = Chernoff.enrichment.noRowScaling(A, X)
     
-    p_c = Matrix::colMeans(X)
-    Obs = as.matrix(Matrix::t(X) %*% A)
-    
-    
-    Exp = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A)))
-    Nu = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A^2)))
-    
-    Lambda = Obs - Exp
-    
-    a = apply(A, 2, max)
-    ones = array(1, dim = dim(Lambda)[1])
-    
-    
-    logPvals = Lambda^2/(2 * (Nu + (ones %*% Matrix::t(a)) * Lambda/3))
-    
-    rownames(logPvals) = colnames(ind.mat)
-    colnames(logPvals) = colnames(DE.profile)
-    
-    logPvals[Lambda < 0] = 0
-    logPvals[is.na(logPvals)] = 0
-    
-    logPvals = logPvals/log(10)
+    # p_c = Matrix::colMeans(X)
+    # Obs = as.matrix(Matrix::t(X) %*% A)
+    # 
+    # 
+    # Exp = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A)))
+    # Nu = as.matrix(p_c %*% Matrix::t(Matrix::colSums(A^2)))
+    # 
+    # Lambda = Obs - Exp
+    # 
+    # a = apply(A, 2, max)
+    # ones = array(1, dim = dim(Lambda)[1])
+    # 
+    # 
+    # logPvals = Lambda^2/(2 * (Nu + (ones %*% Matrix::t(a)) * Lambda/3))
+    # 
+    # rownames(logPvals) = colnames(ind.mat)
+    # colnames(logPvals) = colnames(DE.profile)
+    # 
+    # logPvals[Lambda < 0] = 0
+    # logPvals[is.na(logPvals)] = 0
+    # 
+    # logPvals = logPvals/log(10)
     
     
     return(logPvals)
@@ -394,7 +471,7 @@ compute.archetype.feature.specificity <- function(ACTIONet.out, sce, mode = "spa
 
 
 compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotation.name, sce.data.attr = "logcounts") {
-	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	idx = which((names(ACTIONet.out$annotations) == annotation.name))
 	if(length(idx) == 0) {
 		R.utils::printf('Annotation %s not found\n', annotation.name)
 		return(ACTIONet.out)
@@ -402,16 +479,19 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
 	
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
 
-	Labels = ACTIONet.out$annotations[[idx]]$Labels
 	
-	labels = as.numeric(Labels)
-	labels.char = names(Labels)
-	
-	Annot = sort(unique(labels.char))
-	Annot.levels = labels[match(Annot, labels.char)]
-	perm = order(Annot.levels)
-	Annot.sorted = Annot[perm]
-	
+	Labels = preprocess.labels(ACTIONet.out, ACTIONet.out$annotations[[idx]]$Labels)	
+    labels = as.numeric(Labels)
+    if(is.null(names(Labels))) {
+    	names(Labels) = as.character(labels)
+    	Annot.sorted = as.character(sort(unique(labels)))
+    } else {
+	    labels.char = names(Labels)
+	    Annot = sort(unique(labels.char))
+	    Annot.levels = labels[match(Annot, labels.char)]
+	    perm = order(Annot.levels)
+	    Annot.sorted = Annot[perm]
+    }	
     
     X = t(sapply(Annot.sorted, function(l) as.numeric(names(Labels) == l)))
     

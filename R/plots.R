@@ -20,7 +20,7 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
     "#008080", "#e6beff", "#9a6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#808080", "#ffffff", "#000000")
 
 
-plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
+plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
 	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
     suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "") {
     
@@ -84,11 +84,22 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
             if(length(idx) == 1) {
 				return(as.numeric(coors[idx, ]))
 			} 
+
             sub.coors = coors[idx, ]
-            D = as.matrix(dist(sub.coors))
-            stats = Matrix::rowMeans(D)
-            min.idx = which.min(stats)
-			anchor.coor = as.numeric(sub.coors[min.idx, ])            
+            sub.coors.sq = sub.coors^2
+			norm.sq = Matrix::rowSums(sub.coors.sq)
+			anchor.idx = which.min(sapply(1:nrow(sub.coors.sq), function(i) { 
+				dd = norm.sq[i] + norm.sq - 2* sub.coors %*% sub.coors[i, ]
+				mean.dist.sq = median(dd)
+				return(mean.dist.sq)
+			}))
+            
+                        
+            # D = as.matrix(dist(sub.coors))
+            # stats = Matrix::rowMeans(D)
+            # anchor.idx = which.min(stats)
+            
+			anchor.coor = as.numeric(sub.coors[anchor.idx, ])            
 			return(anchor.coor)
         }))
         textHalo(x = centroids[, 1], y = centroids[, 2], labels = Annot, col = colorspace::darken(Pal, 0.5), bg = "#eeeeee", r = text.halo.width, cex = label.text.size)
@@ -192,6 +203,52 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
     require(ggrepel)
     require(ggplot2)
     p <- ggplot(genes.df, aes(x, y, label = gene, color = gene)) + scale_colour_manual(values = gene.colors) + geom_point(show.legend = FALSE) + geom_label_repel(show.legend = FALSE, force = 5) + theme_void()
+    
+    plot(p)
+}
+
+
+
+plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, top.features = 5, CPal = NULL) {
+	if(max(feature.enrichment.table) > 50)
+		feature.enrichment.table = log1p(feature.enrichment.table)
+
+	feature.enrichment.table = doubleNorm(feature.enrichment.table)
+	
+	selected.features = sort(unique(as.character(apply(feature.enrichment.table, 2, function(x) rownames(feature.enrichment.table)[order(x, decreasing = T)[1:top.features]]))))
+	
+	M = Matrix::t(as(ACTIONet.out$unification.out$H.core, 'sparseMatrix'))
+	cs = Matrix::colSums(M)
+	M = scale(M, center = FALSE, scale = cs)
+	
+	core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)
+	X = t(feature.enrichment.table[selected.features, ])
+	cs = colSums(X)
+	cs[cs == 0] = 1
+	X = scale(X, center = F, scale = cs)
+	feature.coors = t(X) %*% core.coors
+
+    if (is.null(CPal)) {
+        Pal = ACTIONet.out$unification.out$Pal
+    } else {
+    	if(length(CPal) == 1) {
+            Pal = ggpubr::get_palette(CPal, length(ACTIONet.out$unification.out$Pal))
+    	} else {
+            Pal = CPal[1:length(ACTIONet.out$unification.out$Pal)]
+    	}
+    }
+    
+    core.Lab = grDevices::convertColor(color = t(col2rgb(Pal)/256), from = "sRGB", to = "Lab")
+    feature.color.Lab = t(X) %*% core.Lab
+    feature.colors = rgb(grDevices::convertColor(color = feature.color.Lab, from = "Lab", to = "sRGB"))
+    names(feature.colors) = selected.features
+
+
+    features.df = data.frame(feature = selected.features, x = feature.coors[, 1], y = feature.coors[, 2])
+    
+    require(ggrepel)
+    require(ggplot2)
+    p <- ggplot(features.df, aes(x, y, label = feature, color = feature)) + scale_colour_manual(values = feature.colors) + geom_point(show.legend = FALSE) + geom_label_repel(show.legend = FALSE, force = 5) + theme_void()
     
     plot(p)
 }
@@ -312,12 +369,12 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
 		if(is.null(Annot)) {
 		    node.data$vCol = vCol
 			node.data$vCol.border = vCol.border
-			network <- plot_ly(node.data, x = ~x, y = ~y, opacity = 1, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text", showlegend = FALSE)
+			network <- plot_ly(node.data, x = ~x, y = ~y, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text", showlegend = FALSE)
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis)
 		} else {
 			border.Pal = colorspace::darken(Pal, 0.5)
 		    node.data$type = factor(names(labels), levels = Annot)
-			network <- plot_ly(node.data, x = ~x, y = ~y, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
+			network <- plot_ly(node.data, x = ~x, y = ~y, color = ~type, colors = Pal, marker = list(size = ~size, line = list(width = 0.1 * node.size, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
 		}
 	}

@@ -501,8 +501,9 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 
 
 map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T) {
-    if( (core == T) | (nrow(Enrichment) == nrow(ACTIONet.out$unification.out$H.core)) ) {
+    if( core == T ) {
 		cell.scores.mat = ACTIONet.out$unification.out$H.core		
+		
 	} else {
 		cell.scores.mat = ACTIONet.out$reconstruct.out$H_stacked
 	}    
@@ -516,30 +517,7 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     }
 
 
-	#Z = (Enrichment - mean(Enrichment)) / sd(Enrichment)
-	#Enrichment = 1 / (1 + exp(-3*Z))
-    #Enrichment[Enrichment < 0] = 0
-    if(min(Enrichment) < 0) {
-		Enrichment = exp(Enrichment)
-		#Enrichment = 1 / (1 + exp(-3*Enrichment/sd(Enrichment))
-	}
-	if( (min(Enrichment) >= 0) & (max(Enrichment) > 100)) {
-		Enrichment = log1p(Enrichment)	
-	} 
-	Enrichment[is.na(Enrichment)] = 0
-	#Enrichment = t(apply(Enrichment, 1, function(x) x / max(x)))
-
-	
-	rs = sqrt(Matrix::rowSums(Enrichment))
-	rs[rs == 0] = 1
-	D_r = Matrix::Diagonal(nrow(Enrichment), 1/rs)
-	
-	cs = sqrt(Matrix::colSums(Enrichment))
-	cs[cs == 0] = 1
-	D_c = Matrix::Diagonal(ncol(Enrichment), 1/cs)
-	
-	Enrichment.scaled = as.matrix(D_r %*% Enrichment %*% D_c)
-
+	Enrichment.scaled = doubleNorm(Enrichment)
     
     cell.Enrichment.mat = cell.scores.mat %*% Enrichment.scaled
     colnames(cell.Enrichment.mat) = colnames(Enrichment)
@@ -655,7 +633,12 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
         idx = IDX[[i]]
         
         sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
+        
         sub.cn = coreness(sub.ACTIONet)
+
+        pr.out = batchPR(as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix'), U = as.matrix(sub.cn/sum(sub.cn)))
+        sub.cn = pr.out*length(pr.out)
+
         if(length(sub.cn) == 1) {
 			cluster.cell.connectivity[[i]] = 1
 			next
@@ -668,9 +651,10 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
         } else {
             z = (as.numeric(rep(0, length(idx))))
         }
-        cluster.cell.connectivity[[i]] = z
         
         cluster.pruned.cells[[i]] = idx[z < z.threshold]
+        
+        cluster.cell.connectivity[[i]] = z
     }
     all.cell.connectivity.scores = as.numeric(sparseVector(unlist(cluster.cell.connectivity), unlist(IDX), length(clusters)))
     all.pruned.cells = sort(unique(unlist(cluster.pruned.cells)))
@@ -689,8 +673,6 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
     
     return(ACTIONet.out)
 }
-
-
 update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1) {	
 	if(length(Labels) == 1) {
 		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
