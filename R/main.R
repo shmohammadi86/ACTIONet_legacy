@@ -87,7 +87,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
 	} else if ( !is.null(colnames(sce)) ) {
 		cells = colnames(sce)
 	} else {
-		cellls = as.character(1:ncol(sce))
+		cells = as.character(1:ncol(sce))
 	}
 	
     ACTIONet.out$log = list(genes = rownames(sce), cells = cells, time = Sys.time())
