@@ -641,12 +641,14 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	# Prunes "trivial" annotations and merges them to larger ones
 	counts = table(Labels)
 	Labels[Labels %in% as.numeric(names(counts)[counts < min.cells])] = NA
-	
-	tmp.label = paste(annotation.in, "pruned", sep = "_")
-	ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = tmp.label, adjust.levels = T, highligh = F)
-	Labels = preprocess.labels(ACTIONet.out, tmp.label)			
-	ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
-
+	mask = is.na(Labels)
+	if(sum(mask) > 0) {
+		Labels[mask] = NA
+		tmp.label = paste(annotation.in, "pruned", sep = "_")
+		ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = tmp.label, adjust.levels = T, highligh = F)
+		Labels = preprocess.labels(ACTIONet.out, tmp.label)			
+		ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
+	}
 	
 	Annot = sort(unique(Labels))
 	idx = match(Annot, Labels)
@@ -658,7 +660,7 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
     	
         new.Labels = assess.label.local.enrichment(P, Labels)
         Enrichment = new.Labels$Enrichment
-        curr.enrichment = sapply(1:nrow(Enrichment), function(i) Enrichment[i, names(Labels)[i]])
+        curr.enrichment = sapply(1:nrow(Enrichment), function(k) Enrichment[k, names(Labels)[k]])
         
         Diff.LFR = log2((new.Labels$Labels.confidence / curr.enrichment))
         Diff.LFR[is.na(Diff.LFR)] = 0

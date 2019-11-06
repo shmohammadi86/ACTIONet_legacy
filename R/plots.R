@@ -187,7 +187,68 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
 
 
 
-plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
+plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, top.features = 5, CPal = NULL, title = "Feature view", label.text.size = 1) {
+	if(ncol(feature.enrichment.table) != nrow(ACTIONet.out$unification.out$H.core)) {
+		feature.enrichment.table = Matrix::t(feature.enrichment.table)
+	}
+	
+	if(max(feature.enrichment.table) > 50)
+		feature.enrichment.table = log1p(feature.enrichment.table)
+
+	feature.enrichment.table = doubleNorm(feature.enrichment.table)
+	
+	selected.features = sort(unique(as.character(apply(feature.enrichment.table, 2, function(x) rownames(feature.enrichment.table)[order(x, decreasing = T)[1:top.features]]))))
+	
+	M = Matrix::t(as(ACTIONet.out$unification.out$H.core, 'sparseMatrix'))
+	cs = Matrix::colSums(M)
+	M = scale(M, center = FALSE, scale = cs)
+	
+	core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)
+	X = t(feature.enrichment.table[selected.features, ])
+	cs = colSums(X)
+	cs[cs == 0] = 1
+	X = scale(X, center = F, scale = cs)
+	feature.coors = t(X) %*% core.coors
+
+    if (is.null(CPal)) {
+        Pal = ACTIONet.out$unification.out$Pal
+    } else {
+    	if(length(CPal) == 1) {
+            Pal = ggpubr::get_palette(CPal, length(ACTIONet.out$unification.out$Pal))
+    	} else {
+            Pal = CPal[1:length(ACTIONet.out$unification.out$Pal)]
+    	}
+    }
+    
+    core.Lab = grDevices::convertColor(color = t(col2rgb(Pal)/256), from = "sRGB", to = "Lab")
+    feature.color.Lab = t(X) %*% core.Lab
+    feature.colors = rgb(grDevices::convertColor(color = feature.color.Lab, from = "Lab", to = "sRGB"))
+    names(feature.colors) = selected.features
+
+
+	x = feature.coors[, 1]
+	y = feature.coors[, 2]
+	words = selected.features
+    plot(x, y, type = "n", col = feature.colors, axes = FALSE, xlab = "", ylab = "", main = title)
+    lay <- wordlayout(x, y, words, label.text.size)
+    for (i in 1:length(x)) {
+        xl <- lay[i, 1]
+        yl <- lay[i, 2]
+        w <- lay[i, 3]
+        h <- lay[i, 4]
+        if (x[i] < xl || x[i] > xl + w || y[i] < yl || y[i] > 
+            yl + h) {
+            points(x[i], y[i], pch = 16, col = "black", cex = 0.75*label.text.size)
+            nx <- xl + 0.5 * w
+            ny <- yl + 0.5 * h
+            lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(feature.colors[[i]], 0.5))
+        }
+    }
+    text(lay[, 1] + 0.5 * lay[, 3], lay[, 2] + 0.5 * lay[, 4], words, col = feature.colors, cex = label.text.size, xlab = "", ylab = "", main = title)
+
+}
+
+plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", title = "Gene view") {
     if( !('unification.out' %in% names(ACTIONet.out)) ) {
 		print('Error in plot.ACTIONet.gene.view: "unification.out" is not in ACTIONet.out. Please run unify.cell.states() first.')
 		return()
@@ -227,62 +288,26 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
     gene.colors = rgb(grDevices::convertColor(color = gene.color.Lab, from = "Lab", to = "sRGB"))
     names(gene.colors) = selected.genes
 
-
-    genes.df = data.frame(gene = selected.genes, x = gene.coors[, 1], y = gene.coors[, 2])
-    
-    require(ggrepel)
-    require(ggplot2)
-    p <- ggplot(genes.df, aes(x, y, label = gene, color = gene)) + scale_colour_manual(values = gene.colors) + geom_point(show.legend = FALSE) + geom_label_repel(show.legend = FALSE, force = 5) + theme_void()
-    
-    plot(p)
-}
-
-
-
-plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, top.features = 5, CPal = NULL) {
-	if(max(feature.enrichment.table) > 50)
-		feature.enrichment.table = log1p(feature.enrichment.table)
-
-	feature.enrichment.table = doubleNorm(feature.enrichment.table)
-	
-	selected.features = sort(unique(as.character(apply(feature.enrichment.table, 2, function(x) rownames(feature.enrichment.table)[order(x, decreasing = T)[1:top.features]]))))
-	
-	M = Matrix::t(as(ACTIONet.out$unification.out$H.core, 'sparseMatrix'))
-	cs = Matrix::colSums(M)
-	M = scale(M, center = FALSE, scale = cs)
-	
-	core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)
-	X = t(feature.enrichment.table[selected.features, ])
-	cs = colSums(X)
-	cs[cs == 0] = 1
-	X = scale(X, center = F, scale = cs)
-	feature.coors = t(X) %*% core.coors
-
-    if (is.null(CPal)) {
-        Pal = ACTIONet.out$unification.out$Pal
-    } else {
-    	if(length(CPal) == 1) {
-            Pal = ggpubr::get_palette(CPal, length(ACTIONet.out$unification.out$Pal))
-    	} else {
-            Pal = CPal[1:length(ACTIONet.out$unification.out$Pal)]
-    	}
+	x = gene.coors[, 1]
+	y = gene.coors[, 2]
+	words = selected.genes
+    plot(x, y, type = "n", col = gene.colors, axes = FALSE, xlab = "", ylab = "", main = title)
+    lay <- wordlayout(x, y, words, label.text.size)
+    for (i in 1:length(x)) {
+        xl <- lay[i, 1]
+        yl <- lay[i, 2]
+        w <- lay[i, 3]
+        h <- lay[i, 4]
+        if (x[i] < xl || x[i] > xl + w || y[i] < yl || y[i] > 
+            yl + h) {
+            points(x[i], y[i], pch = 16, col = "black", cex = 0.75*label.text.size)
+            nx <- xl + 0.5 * w
+            ny <- yl + 0.5 * h
+            lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(gene.colors[[i]], 0.5))
+        }
     }
-    
-    core.Lab = grDevices::convertColor(color = t(col2rgb(Pal)/256), from = "sRGB", to = "Lab")
-    feature.color.Lab = t(X) %*% core.Lab
-    feature.colors = rgb(grDevices::convertColor(color = feature.color.Lab, from = "Lab", to = "sRGB"))
-    names(feature.colors) = selected.features
-
-
-    features.df = data.frame(feature = selected.features, x = feature.coors[, 1], y = feature.coors[, 2])
-    
-    require(ggrepel)
-    require(ggplot2)
-    p <- ggplot(features.df, aes(x, y, label = feature, color = feature)) + scale_colour_manual(values = feature.colors) + geom_point(show.legend = FALSE) + geom_label_repel(show.legend = FALSE, force = 5) + theme_void()
-    
-    plot(p)
+    text(lay[, 1] + 0.5 * lay[, 3], lay[, 2] + 0.5 * lay[, 4], words, col = gene.colors, cex = label.text.size, xlab = "", ylab = "", main = title)
 }
-
 
 plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
 	node.size = 1, CPal = ACTIONet.color.bank, enrichment.table = NULL, top.features = 7, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", threeD = FALSE, title = "ACTIONet") {
