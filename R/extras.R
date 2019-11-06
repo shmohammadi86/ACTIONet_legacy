@@ -465,21 +465,24 @@ unhash = function(hashed, alphabet) {
     return(number)
 }
 
-textHalo <- function(x, y = NULL, labels, col = "white", bg = "black", r = 0.1, ...) {
+
+layout.labels <- function(x, y, labels, col = "white", bg = "black", r = 0.1, cex = 1.0, ...) {
+	require(wordcloud)
+    lay <- wordcloud::wordlayout(x, y, words = labels, cex = cex, ...)
+
+    x = lay[, 1] + 0.5 * lay[, 3]
+    y = lay[, 2] + 0.5 * lay[, 4]
     
     theta = seq(0, 2 * pi, length.out = 50)
     xy <- xy.coords(x, y)
     xo <- r * strwidth("A")
     yo <- r * strheight("A")
     
-    # draw background text with small shift in x and y in background colour
     for (i in theta) {
-        text(xy$x + cos(i) * xo, xy$y + sin(i) * yo, labels, col = bg, ...)
+        text(xy$x + cos(i) * xo, xy$y + sin(i) * yo, labels, col = bg, cex = cex, ...)
     }
-    # draw actual text in exact xy position in foreground colour
-    text(xy$x, xy$y, labels, col = col, ...)
+    text(xy$x, xy$y, labels, col = col, cex = cex, ...)
 }
-
 
 combine.logPvals <- function(logPvals, top.len = NULL, base = 10) {
     if (is.null(top.len)) {
@@ -533,13 +536,24 @@ preprocess.labels <- function(ACTIONet.out, labels) {
 	return(labels)
 }
 
+reannotate.labels <- function(ACTIONet.out, Labels) {
+	Labels = preprocess.labels(ACTIONet.out, Labels)			
+	
+	
+	Annot = sort(unique(Labels))
+	idx = match(Annot, Labels)
+	names(Annot) = names(Labels)[idx]
+	
+	new.Labels = match(names(Labels), names(Annot))
+	names(new.Labels) = as.character(names(Labels))
+	
+	return(new.Labels)	
+}
+
 gen.colors <- function(Pal, color.no, plot.cols) {
-    if (length(Pal) < total.colors) {
-        R.utils::printf("Reached max colors (%d). Returning original colors", length(Pal))
-        return(Pal)
-    }
     colors.RGB = col2rgb(Pal)/256
-    colors.Lab = grDevices::convertColor(color = t(arch.RGB), from = "sRGB", to = "Lab")
+    
+    colors.Lab = grDevices::convertColor(color = t(Pal), from = "sRGB", to = "Lab")
     X = colors.Lab
     color.cent = kmeans(X, color.no)$centers
     new.colors = rgb(grDevices::convertColor(color = color.cent, from = "Lab", to = "sRGB"))

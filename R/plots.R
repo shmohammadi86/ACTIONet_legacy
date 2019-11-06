@@ -1,4 +1,4 @@
-ACTIONet.color.bank = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#888888", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488")
+ACTIONet.color.bank = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#808080", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488", "#f032e6", "#bcf60c")
 
 # From: https://github.com/r3fang/SnapATAC/blob/master/R/plottings-utilities.R
 ACTIONet.color.bank1 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
@@ -22,7 +22,7 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
 	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "") {
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
     
     node.size = node.size * 0.5
     
@@ -30,8 +30,32 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
     coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
+
+	if( (length(labels) == 1) & (is.character(labels)) ) {
+		annotation_name = labels
+	} else {
+		annotation_name = "plot.ACTIONet-tmp"
+	}	
     
 	labels = preprocess.labels(ACTIONet.out, labels)
+
+	if( !is.null(labels) & (highlight == T) ) {
+		if( annotation_name == "plot.ACTIONet-tmp") {
+			ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation_name)
+		}
+		
+		if( is.null(ACTIONet.out$annotations[[annotation_name]]$highlight) ) {
+			print("Labels are not highlighted ... generating highlight on the fly")
+			ACTIONet.out = highlight.annotations(annotation.name = annotation_name)			
+		}
+		label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
+		
+		if( !is.null(transparency.attr) ) {
+			print("highlight=T while transparency.attr is not NULL. Overwriting transparency.attr with highlight values")
+		}
+		transparency.attr = label.hightlight$connectivity.scores		
+	}
+	
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         Annot = NULL
@@ -45,6 +69,8 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         names(Pal) = Annot
         vCol = Pal[names(labels)]
 	}
+
+
 
     if (!is.null(transparency.attr)) {
         z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
@@ -79,6 +105,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     
     
     if ( add.text == T & (!is.null(Annot)) ) {
+    	require(wordcloud)
         centroids = t(sapply(Annot, function(l) {
             idx = which(names(labels) == l)
             if(length(idx) == 1) {
@@ -86,23 +113,26 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 			} 
 
             sub.coors = coors[idx, ]
-            sub.coors.sq = sub.coors^2
-			norm.sq = Matrix::rowSums(sub.coors.sq)
-			anchor.idx = which.min(sapply(1:nrow(sub.coors.sq), function(i) { 
-				dd = norm.sq[i] + norm.sq - 2* sub.coors %*% sub.coors[i, ]
-				mean.dist.sq = median(dd)
-				return(mean.dist.sq)
-			}))
+            anchor.coor = as.numeric(apply(sub.coors, 2, function(x) mean(x, trim = 0.5)))
+#             sub.coors.sq = sub.coors^2
+# 			norm.sq = Matrix::rowSums(sub.coors.sq)
+# 			anchor.idx = which.min(sapply(1:nrow(sub.coors.sq), function(i) { 
+# 				dd = norm.sq[i] + norm.sq - 2* sub.coors %*% sub.coors[i, ]
+# 				mean.dist.sq = median(dd)
+# 				return(mean.dist.sq)
+# 			}))
             
                         
             # D = as.matrix(dist(sub.coors))
             # stats = Matrix::rowMeans(D)
             # anchor.idx = which.min(stats)
             
-			anchor.coor = as.numeric(sub.coors[anchor.idx, ])            
+			# anchor.coor = as.numeric(sub.coors[anchor.idx, ])            
+            
 			return(anchor.coor)
         }))
-        textHalo(x = centroids[, 1], y = centroids[, 2], labels = Annot, col = colorspace::darken(Pal, 0.5), bg = "#eeeeee", r = text.halo.width, cex = label.text.size)
+        layout.labels(x = centroids[, 1], y = centroids[, 2], labels = Annot, col = colorspace::darken(Pal, 0.5), bg = "#eeeeee", r = text.halo.width, cex = label.text.size)
+        #wordcloud::textplot(x = centroids[, 1], y = centroids[, 2], new = F, words = Annot, col = colorspace::darken(Pal, 0.5), bg = "#eeeeee") 
     }
     
     if ( (suppress.legend == FALSE) & !is.null(Annot) ) {

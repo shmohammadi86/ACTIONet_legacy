@@ -494,15 +494,20 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     return(imputed.gene.expression)
 }
 
-assess.labels <- function(P, Labels) {
+assess.label.local.enrichment <- function(P, Labels) {
+	if( is.null(names(Labels)) ){
+		names(Labels) = as.character(Labels)
+	}
     counts = table(Labels)
     p = counts/sum(counts)
+	Annot = names(Labels)[match(as.numeric(names(counts)), Labels)]
+    
     X = sapply(names(p), function(label) {
         x = as.numeric(Matrix::sparseVector(x = 1, i = which(Labels == label), length = length(Labels)))
     })
-    
+	colnames(X) = Annot
+	
     Exp = array(1, nrow(P)) %*% t(p)
-    
     Obs = as(P %*% X, "dgTMatrix")
     
     # Need to rescale due to missing values within the neighborhood
@@ -524,7 +529,13 @@ assess.labels <- function(P, Labels) {
     
     logPval = as.matrix(logPval)
     
-    updated.Labels = apply(logPval, 1, which.max)
+    colnames(logPval) = Annot
+    
+
+    max.idx = apply(logPval, 1, which.max)
+    updated.Labels = as.numeric(names(p))[max.idx]
+    names(updated.Labels) = Annot[max.idx]
+    
     updated.Labels.conf = apply(logPval, 1, max)
     
     res = list(Labels = updated.Labels, Labels.confidence = updated.Labels.conf, Enrichment = logPval)
@@ -532,28 +543,8 @@ assess.labels <- function(P, Labels) {
     return(res)
 }
 
-
-infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, double.stochastic = FALSE, max_iter = 3) {
+infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, double.stochastic = FALSE, max_iter = 3, adjust.levels = T, highlight = T) {
  	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
-    
-    
-	# Directely passed a label vector
-	if(length(annotation.in) > 1) {
-		Labels = annotation.in
-	} else {
-		idx = which(names(ACTIONet.out$annotations) == annotation.in)
-		if(length(idx) == 0) {
-			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
-			return(ACTIONet)
-		}
-		Labels = ACTIONet.out$annotations[[idx]]$Labels
-	}
-	Labels = preprocess.labels(ACTIONet.out, Labels)
-	
-	Annot = sort(unique(Labels))
-	names(Annot) = names(Labels)[match(Annot, Labels)]
-    Labels = as.numeric(Labels)
-    
     A = as(Adj, "dgTMatrix")
     eps = 1e-16
     rs = Matrix::rowSums(A)
@@ -565,13 +556,22 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
     }
     
     
+	Labels = preprocess.labels(ACTIONet.out, annotation.in)			
+	if(is.null(Labels)) {
+		return(ACTIONet.out)
+	}
+	
+	Annot = sort(unique(Labels))
+	idx = match(Annot, Labels)
+	names(Annot) = names(Labels)[idx]
+    
     na.mask = is.na(Labels)
     
     i = 1
     while (sum(na.mask) > 0) {
         R.utils::printf("iter %d\n", i)
     	
-        new.Labels = assess.labels(P, Labels)
+        new.Labels = assess.label.local.enrichment(P, Labels)
         
         mask = na.mask & (new.Labels$Labels.confidence > 3 + log(length(Labels)))
         Labels[mask] = new.Labels$Labels[mask]
@@ -582,10 +582,18 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
         
         i = i + 1
     }
-    new.Labels = assess.labels(P, Labels)
-    mask = na.mask & (new.Labels$Labels.confidence > 3 + log(length(Labels)))
-    Labels[is.na(Labels)] = new.Labels$Labels[is.na(Labels)]
-    names(Labels) = names(Annot)[Labels]
+    new.Labels = assess.label.local.enrichment(P, Labels)
+    Labels[na.mask] = new.Labels$Labels[na.mask]
+	Labels.conf = new.Labels$Labels.confidence
+    
+    updated.Labels = as.numeric(Labels)
+    names(updated.Labels) = names(Annot)[match(Labels, Annot)]
+    if(adjust.levels == T) {
+		Labels = reannotate.labels(ACTIONet.out, updated.Labels)
+	} else {
+		Labels = updated.Labels
+	}
+    
 
    	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -598,37 +606,22 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
-	res = list(Labels = Labels, Labels.confidence = new.Labels$Labels.confidence, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
 	eval(parse(text=cmd))    
+
+	if( highlight == T ) {
+		print("Adding annotation highlights")
+		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)			
+	}
 	
 	return(ACTIONet.out)
 }
 
 
-correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3, min.cells = 20) {
+correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3, adjust.levels = T, min.cells = 30, highlight = T) {
  	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
-    
-    
-	# Directely passed a label vector
-	if(length(annotation.in) > 1) {
-		Labels = annotation.in
-	} else {
-		idx = which(names(ACTIONet.out$annotations) == annotation.in)
-		if(length(idx) == 0) {
-			R.utils::printf('Error in correct.cell.labels: annotation.in "%s" not found\n', annotation.in)
-			return(ACTIONet)
-		}
-		Labels = ACTIONet.out$annotations[[idx]]$Labels
-	}
-	Labels = preprocess.labels(ACTIONet.out, Labels)
-		
-	
-	Annot = sort(unique(Labels))
-	names(Annot) = names(Labels)[match(Annot, Labels)]
-    Labels = as.numeric(Labels)
-    
     A = as(Adj, "dgTMatrix")
     eps = 1e-16
     rs = Matrix::rowSums(A)
@@ -639,20 +632,50 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
         P = W %*% Matrix::t(W)
     }
     
+    
+	Labels = preprocess.labels(ACTIONet.out, annotation.in)			
+	if(is.null(Labels)) {
+		return(ACTIONet.out)
+	}
+	
+	# Prunes "trivial" annotations and merges them to larger ones
+	counts = table(Labels)
+	Labels[Labels %in% as.numeric(names(counts)[counts < min.cells])] = NA
+	
+	tmp.label = paste(annotation.in, "pruned", sep = "_")
+	ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = tmp.label, adjust.levels = T, highligh = F)
+	Labels = preprocess.labels(ACTIONet.out, tmp.label)			
+	ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
+
+	
+	Annot = sort(unique(Labels))
+	idx = match(Annot, Labels)
+	names(Annot) = names(Labels)[idx]
+        
+    
 	for(i in 1:max_iter) {    
         R.utils::printf("iter %d\n", i)
     	
-        new.Labels = assess.labels(P, Labels)
+        new.Labels = assess.label.local.enrichment(P, Labels)
         Enrichment = new.Labels$Enrichment
-        curr.enrichment = sapply(1:nrow(Enrichment), function(i) Enrichment[i, Labels[i]])
+        curr.enrichment = sapply(1:nrow(Enrichment), function(i) Enrichment[i, names(Labels)[i]])
         
         Diff.LFR = log2((new.Labels$Labels.confidence / curr.enrichment))
         Diff.LFR[is.na(Diff.LFR)] = 0
 
         Labels[Diff.LFR > LFR.threshold] = new.Labels$Labels[Diff.LFR > LFR.threshold]
+        names(Labels) = Annot[Labels]
     }
-    names(Labels) = names(Annot)[Labels]
-
+	Labels.conf = new.Labels$Labels.confidence
+    updated.Labels = as.numeric(Labels)
+    names(updated.Labels) = names(Annot)[match(Labels, Annot)]
+    
+    if(adjust.levels == T) {
+		Labels = reannotate.labels(ACTIONet.out, updated.Labels)
+	} else {
+		Labels = updated.Labels
+	}
+    
    	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -664,10 +687,15 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
-	res = list(Labels = Labels, Labels.confidence = new.Labels$Labels.confidence, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
+	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
 	eval(parse(text=cmd))    
-	
+
+	if( highlight == T ) {
+		print("Adding annotation highlights")
+		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)			
+	}
+		
 	return(ACTIONet.out)
 }

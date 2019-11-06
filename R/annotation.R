@@ -1,14 +1,9 @@
-add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name = NULL) {	
+add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name = NULL, highlight = T) {	
 	if(is.null(annotation.name)) {
 		print("Error: You need to provide a name for the annotation")
 		return(ACTIONet.out)
 	}
 	
-	if(length(cell.annotations) != length(ACTIONet.out$log$cells)) {
-		print("Error: Number of elemebts in the cell.annotations should match with the number of cells in ACTIONet.out$log$cells.")
-		return(ACTIONet.out)
-	} 
-
 	cell.annotations = preprocess.labels(ACTIONet.out, cell.annotations)
 	
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
@@ -27,6 +22,11 @@ add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name
 	eval(parse(text=cmd))
 
 	R.utils::printf("Annotation %s has been added to ACTIONet.out$annotations list\n", annotation.name)
+
+	if( highlight == T ) {
+		print("Adding annotation highlights")
+		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.name)			
+	}
 	
     return(ACTIONet.out)	
 }
@@ -490,6 +490,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
+	Labels = reannotate.labels(ACTIONet.out, Labels)
 	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.using.markers", Enrichment = Z)
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
@@ -532,6 +533,7 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
     cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
     names(cell.Labels) = colnames(cell.Enrichment.mat)[cell.Labels]
     cell.Labels.conf = apply(cell.Enrichment.mat, 1, max)
+
     
 
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
@@ -545,6 +547,7 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
 	
+	cell.Labels = reannotate.labels(ACTIONet.out, cell.Labels)
 	res = list(Labels = cell.Labels, Labels.confidence = cell.Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "annotate.cells.from.archetype.enrichment", Enrichment = cell.Enrichment.mat)
 	
 	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
