@@ -551,17 +551,23 @@ reannotate.labels <- function(ACTIONet.out, Labels) {
 }
 
 gen.colors <- function(Pal, color.no, plot.cols) {
-    colors.RGB = col2rgb(Pal)/256
+	color.no = min(color.no, length(Pal)-1)
+    colors.RGB = t(col2rgb(Pal)/256)
+    colors.Lab = grDevices::convertColor(color = colors.RGB, from = "sRGB", to = "Lab")
     
-    colors.Lab = grDevices::convertColor(color = t(Pal), from = "sRGB", to = "Lab")
-    X = colors.Lab
-    color.cent = kmeans(X, color.no)$centers
-    new.colors = rgb(grDevices::convertColor(color = color.cent, from = "Lab", to = "sRGB"))
-    if (plot.cols) 
+    set.seed(0)
+    W0 = t(kmeans(colors.Lab, color.no)$centers)
+	AA.out = ACTIONet::runAA(X, W0)
+	
+    C = AA.out$C
+	arch.colors = t(t(colors.Lab) %*% C)
+	
+    new.colors = rgb(grDevices::convertColor(color = arch.colors, from = "Lab", to = "sRGB"))
+    if (plot.cols)
         scales::show_col(new.colors)
-    
     return(new.colors)
 }
+
 
 doubleNorm <- function(Enrichment, rescale = T) {
     if(min(Enrichment) < 0) {

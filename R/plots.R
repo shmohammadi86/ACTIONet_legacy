@@ -51,6 +51,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 		label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
 		
 		if( !is.null(transparency.attr) ) {
+			print(class(transparency.attr))
 			print("highlight=T while transparency.attr is not NULL. Overwriting transparency.attr with highlight values")
 		}
 		transparency.attr = label.hightlight$connectivity.scores		
@@ -376,6 +377,8 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
 				selected.features = sort(unique(as.character(GT)))
 				
 				cell.scores = t(enrichment.table[selected.features, ] %*% ACTIONet.out$unification.out$H.core)
+			} else {
+				cell.scores = NULL
 			}
 		} else {
 			cell.scores = NULL
@@ -557,80 +560,67 @@ plot.marker.dotplot <- function(ACTIONet.out, sce, marker.genes, Labels, CPal = 
     corrplot(X, is.corr = FALSE, method = "circle", tl.col = "black", cl.pos = "n", col = Pal, tl.cex = font.size, cl.cex = font.size)
 }
 
-plot.ACTIONet.gradient <- function(ACTIONet.out, x, max.update.iter = 3, CPal = "magma", node.size = 3, prune = FALSE, nonparameteric = FALSE, 
-    transparency.attr = NA, trans.fact = 1, title = NA, alpha.val = 0.5) {
-    require(igraph)
-    require(colorspace)
-    require(viridis)
-    
-    add.vertex.shape("fcircle", clip = igraph.shape.noclip, plot = mycircle, parameters = list(vertex.frame.color = 1, vertex.frame.width = 1))
-    
-    # Normalize z = scale(x) z[z > 3] = 3 x = exp(z) x = x / sum(x) x = page_rank(ACTIONet.out$ACTIONet, personalized = x, damping =
-    # 0.15)$vector
-    
-    
-    x[x < 0] = 0
-    if (prune == TRUE) {
-        x = prune.cell.scores(ACTIONet.out, x, alpha_val = alpha.val, transform = FALSE)
-    }
-    
+plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE) {
+
+    node.size = node.size * 0.5
+
+    if (is.igraph(ACTIONet.out)) 
+        ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
+    coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
+
+    NA.col = "#eeeeee"
+        
+    ## Create color gradient generator
     if (CPal %in% c("inferno", "magma", "viridis", "BlGrRd", "RdYlBu", "Spectral")) {
         Pal_grad = switch(CPal, inferno = inferno(500, alpha = 0.8), magma = magma(500, alpha = 0.8), viridis = viridis(500, alpha = 0.8), 
             BlGrRd = colorRampPalette(c("blue", "grey", "red"))(500), Spectral = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, 
                 name = "Spectral"))))(100), RdYlBu = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100))
     } else {
-        lg = rgb(0.95, 0.95, 0.95)
-        Pal_grad = colorRampPalette(c(lg, CPal))(500)
+        Pal_grad = colorRampPalette(c(NA.col, CPal))(500)
+    }	
+
+    ## Scale/prune scorees, if needed
+    x[x < 0] = 0
+	if(max(x) > 50)
+		x = log1p(x)
+	
+    if (prune == TRUE) {
+        x = prune.cell.scores(ACTIONet.out, x, alpha_val = alpha.val, transform = FALSE)
     }
-    
-    if (is.igraph(ACTIONet.out)) 
-        ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
-    
-    
-    sketch.graph = ACTIONet
-    sketch.graph = delete.edges(sketch.graph, E(sketch.graph))
-    
-    V(sketch.graph)$name = ""
-    V(sketch.graph)$shape = "fcircle"
-    
-    vCol = rgb(0.95, 0.95, 0.95)
     
     if (nonparameteric == TRUE) {
-        vCol = colorspace::darken((scales::col_numeric(Pal_grad, domain = NULL))(rank(x)), 0.2)
+        vCol = scales::col_bin(Pal_grad, domain = NULL, bin = 100, na.color = NA.col)(rank(x))
     } else {
-        vCol = colorspace::darken((scales::col_numeric(Pal_grad, domain = NULL))(x), 0.2)
-    }
-    # vCol[x == 0] = rgb(0.95, 0.95, 0.95)
-    
-    
-    if (is.numeric(transparency.attr)) {
-        # beta = 1 / (1 + exp(-trans.fact*(scale(transparency.attr)+1)))
+        vCol = scales::col_bin(Pal_grad, domain = NULL, bin = 100, na.color = NA.col)(x)
+    }	
+
+    if (!is.null(transparency.attr)) {
         z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
-        beta = 1/(1 + exp(-trans.fact * (z + 1)))
-        beta[z > -1] = 1
-        # beta = (transparency.attr - min(transparency.attr)) / (max(transparency.attr) - min(transparency.attr))
-        beta = beta^5
+        beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
+        beta[z > trans.z.threshold] = 1
+        beta = beta^trans.fact
         
-        # plot(density(1-beta)) vCol = colorspace::lighten(vCol, 1-beta, method = 'relative', space = 'HCL') vCol.border =
-        # colorspace::darken(vCol, 0.2*beta)#colorspace::lighten(vCol.border, 1-beta, method = 'relative', space = 'HLS')
-        
-        vCol.border = scales::alpha(colorspace::darken(vCol, 0.3), beta)
+        vCol.border = scales::alpha(colorspace::darken(vCol, 0.1), beta)
         vCol = scales::alpha(vCol, beta)
-        
-        # vCol.border = colorspace::darken(vCol, 0.5*beta)#colorspace::lighten(vCol.border, 1-beta, method = 'relative', space = 'HLS')
-        
     } else {
-        vCol.border = colorspace::darken(vCol, 0.3)
+        vCol.border = colorspace::darken(vCol, 0.1)
     }
-    
-    V(sketch.graph)$size = node.size
-    V(sketch.graph)$frame.width = 0.33 * node.size
-    
-    V(sketch.graph)$color = vCol
-    V(sketch.graph)$frame.color = vCol.border
+
+    x = coors[, 1]
+    y = coors[, 2]
+	plot((min(x) - sd(x)):(max(x) + sd(x)), (min(y) - sd(y)):(max(y) + sd(y)), type = "n", axes = FALSE, xlab = "", ylab = "", main = title)# setting up coord. system
     
     
-    plot(sketch.graph, main = title)
+    # perm = order(x, decreasing = F)
+	# chopchop <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE)) 
+	# chunks = chopchop(perm, 10)    
+	# 
+	# for(idx in chunks) {
+	#     graphics::points(coors[idx, c(1, 2)], bg = vCol[idx], col = vCol.border[idx], cex = node.size, pch = 21)
+	# }	
+
+    idx = order(x, decreasing = T)
+	graphics::points(coors[idx, c(1, 2)], bg = vCol[idx], col = vCol.border[idx], cex = node.size, pch = 21)
 }
 
 visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter = 3, CPal = ACTIONet.color.bank, node.size = 3, adjust.node.size = FALSE,  alpha_val = 0.9, export_path = NA, prune = FALSE) {
