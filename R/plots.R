@@ -700,3 +700,28 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter =
         }
     })
 }
+
+plotOrdered.Heatmap <- function(W, row_title = "Cell states", col_title = "Annotations", measure_name = "Enrichment", scale = T) {
+	
+	if(scale == T) {
+		W = t(scale(t(W)))
+	}
+	
+	require(ComplexHeatmap)
+	require(RColorBrewer)
+	require(seriation)
+	CC = cor(t(W))
+	CC[is.na(CC)] = 0
+	D = as.dist(1-CC)
+	row.perm = get_order(seriate(D, method = "OLO"))
+
+
+	CC = cor(W)
+	CC[is.na(CC)] = 0
+	D = as.dist(1-CC)
+	col.perm = get_order(seriate(D, method = "OLO"))
+
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 11, name = "RdYlBu")))(100)
+
+	Heatmap(W[row.perm, col.perm], name = measure_name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row_title, column_title = col_title, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_title_gp = gpar(fontsize = 10, fontface="bold"))
+}
