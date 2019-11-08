@@ -1,6 +1,6 @@
 run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
-    batch.lambda = 1, k_min = 2, n_epochs = 100, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
+    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
     require(Matrix)
     require(igraph)
     require(ACTIONet)
@@ -143,7 +143,7 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     return(ACTIONet.out)
 }
 
-rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, n_epochs = 100, scale.initial.coordinates = TRUE, 
+rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, n_epochs = 500, scale.initial.coordinates = TRUE, 
     reduction_slot = "S_r") {
     # Build ACTIONet
     set.seed(0)

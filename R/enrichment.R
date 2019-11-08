@@ -393,8 +393,10 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     logPvals = logPvals/log(10)
     
 
+    rownames(significance) = rownames(Obs) = rownames(sce)
     diff.sce <- SingleCellExperiment(assays = list(significance = logPvals, profile = Obs))
-    rownames(diff.sce) = rownames(diff.sce)
+    rownames(diff.sce) = rownames(sce)
+    
     if(class(rowRanges(sce))[[1]] == "GRanges") {
 		rowRanges(diff.sce) = rowRanges(sce)
 		genome(diff.sce) = genome(sce)
