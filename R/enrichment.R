@@ -393,7 +393,7 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     logPvals = logPvals/log(10)
     
 
-    rownames(significance) = rownames(Obs) = rownames(sce)
+    rownames(logPvals) = rownames(Obs) = rownames(sce)
     diff.sce <- SingleCellExperiment(assays = list(significance = logPvals, profile = Obs))
     rownames(diff.sce) = rownames(sce)
     
