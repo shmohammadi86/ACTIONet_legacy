@@ -561,14 +561,31 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
     return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000, min.enrichment = 1) {
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
     arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
     
-    Enrichment = arch.annot$Enrichment
-    Enrichment[Enrichment < min.enrichment] = 0
-    
+    Enrichment = arch.annot$Enrichment    
     ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name)
 
+	if(post.update == T) {
+		cmd = sprintf("ACTIONet.out = correct.cell.annotations(ACTIONet.out, \"%s\", \"%s\")", annotation.name, annotation.name)	
+		eval(parse(text=cmd))		
+	}
+	
+	cmd = sprintf("scores = ACTIONet.out$annotations$\"%s\"$Labels.confidence", annotation.name)	
+	eval(parse(text=cmd))
+
+	nnz = round(sum(scores)^2 / sum(scores^2))
+	threshold = scores[nnz]
+
+	cmd = sprintf("filter.mask = ACTIONet.out$annotations$\"%s\"$Labels.confidence < threshold", annotation.name)	
+	eval(parse(text=cmd))
+
+
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\"$Labels[filter.mask] = names(ACTIONet.out$annotations$\"%s\"$Labels[filter.mask]) = NA", annotation.name, annotation.name)	
+	eval(parse(text=cmd))
+
+	
     return(ACTIONet.out)
 }
 
