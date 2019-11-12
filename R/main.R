@@ -325,7 +325,7 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name =
     return(ACTIONet.out)
 }
 
-cluster.ACTIONet <- function(ACTIONet.out, resolution_parameter = 0.5, arch.init = TRUE, annotation.name = NULL) {
+cluster.ACTIONet <- function(ACTIONet.out, annotation.name = NULL, resolution_parameter = 0.5, arch.init = TRUE) {
     if (arch.init == TRUE) {
 		if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")

@@ -46,7 +46,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 		
 		if( is.null(ACTIONet.out$annotations[[annotation_name]]$highlight) ) {
 			print("Labels are not highlighted ... generating highlight on the fly")
-			ACTIONet.out = highlight.annotations(annotation.name = annotation_name)			
+			ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation_name)			
 		}
 		label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
 		
@@ -605,27 +605,14 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
     } else {
         vCol.border = colorspace::darken(vCol, 0.1)
     }
-
-    x = coors[, 1]
-    y = coors[, 2]
-	plot((min(x) - sd(x)):(max(x) + sd(x)), (min(y) - sd(y)):(max(y) + sd(y)), type = "n", axes = FALSE, xlab = "", ylab = "", main = title)# setting up coord. system
-    
-    
-    # perm = order(x, decreasing = F)
-	# chopchop <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE)) 
-	# chunks = chopchop(perm, 10)    
-	# 
-	# for(idx in chunks) {
-	#     graphics::points(coors[idx, c(1, 2)], bg = vCol[idx], col = vCol.border[idx], cex = node.size, pch = 21)
-	# }	
-
-    idx = order(x, decreasing = T)
-	graphics::points(coors[idx, c(1, 2)], bg = vCol[idx], col = vCol.border[idx], cex = node.size, pch = 21)
+	
+    idx = order(x, decreasing = F)
+    plot(coors[idx, 1], coors[idx, 2], bg = vCol[idx], col = vCol.border[idx], cex = node.size, pch = 21, axes = FALSE, xlab = "", ylab = "", main = title)
+	
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter = 3, CPal = ACTIONet.color.bank, node.size = 3, adjust.node.size = FALSE,  alpha_val = 0.9, export_path = NA, prune = FALSE) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = ACTIONet.color.bank1,  alpha_val = 0.9, export_path = NA, prune = FALSE) {
     require(igraph)
-    add.vertex.shape("fcircle", clip = igraph.shape.noclip, plot = mycircle, parameters = list(vertex.frame.color = 1, vertex.frame.width = 1))
     
     
     if (!sum(sapply(marker.genes, length) != 1) & is.null(names(marker.genes))) {
@@ -638,24 +625,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter =
     all.marker.genes = sort(intersect(gg, rownames(sce)))
     
     
-    imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = prune, alpha_val = alpha_val)
-    
-    # return(imputed.marker.expression)
-    
-    ACTIONet = ACTIONet.out$ACTIONet
-    sketch.graph = ACTIONet
-    sketch.graph = delete.edges(sketch.graph, E(sketch.graph))
-    
-    V(sketch.graph)$name = ""
-    V(sketch.graph)$shape = "fcircle"
-    
-    
-    eps = 1e-16
-    A = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
-    rs = Matrix::rowSums(A)
-    P = sparseMatrix(i = A@i + 1, j = A@j + 1, x = A@x/rs[A@i + 1], dims = dim(A))
-    
-    gradPal = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100)
+    imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = FALSE, alpha_val = alpha_val)
     
     lapply(all.marker.genes, function(gene) {
         print(gene)
@@ -666,38 +636,8 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, max.update.iter =
         celltype.name = names(marker.genes)[idx]
         
         x = imputed.marker.expression[, gene]
-        
-        
-        # Normalize between [0, 1]
-        x = (x - min(x))/(max(x) - min(x))
-        
-        # Find effective # of nonzeros using participation ratio
-        V(sketch.graph)$color = rgb(0.95, 0.95, 0.95)
-        V(sketch.graph)$frame.color = rgb(0.9, 0.9, 0.9)
-        
-        lg = rgb(0.95, 0.95, 0.95)
-        Pal_grad = colorRampPalette(c(lg, Pal[[celltype.name]]))(500)
-        
-        
-        V(sketch.graph)$color = colorspace::darken((scales::col_numeric(Pal_grad, domain = NULL))(scale(x)), 0.15)
-        V(sketch.graph)$frame.color = colorspace::darken(V(sketch.graph)$color, 0.15)
-        
-        
-        
-        if (adjust.node.size == TRUE) 
-            V(sketch.graph)$size = 3 * node.size * x else V(sketch.graph)$size = node.size
-        
-        V(sketch.graph)$frame.width = node.size * 0.1
-        
-        plot(sketch.graph, main = gene)
-        
-        
-        if (!is.na(export_path)) {
-            fname = sprintf("%s/%s.pdf", export_path, ifelse(celltype.name == gene, gene, sprintf("%s_%s", celltype.name, gene)))
-            pdf(fname)
-            plot(sketch.graph, main = gene)
-            dev.off()
-        }
+
+		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = Pal[[celltype.name]], title = gene, prune = prune, alpha_val = alpha_val)
     })
 }
 

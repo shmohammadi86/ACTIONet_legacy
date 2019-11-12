@@ -71,3 +71,13 @@
 #' 
 #' @source \url{http://compbio.mit.edu/ACTIONet/}
 "curatedMarkers_human"
+
+
+
+#' Reference profile for cell sorted PBMC
+#' 
+#' @format:
+#'   SingleCellExperiment object with rowData, colData, and metadata inside
+#' 
+#' @source \url{https://www.ncbi.nlm.nih.gov/pubmed/30726743}
+"Monaco2019"

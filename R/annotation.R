@@ -91,7 +91,7 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, ran
 	Labels = preprocess.labels(ACTIONet.out, Labels)
 
     Annot = names(Labels)[match(sort(unique(Labels)), Labels)]
-
+	
     Enrichment.Z = sapply(Annot, function(label) {
         mask = names(Labels) == label
         class.profile = profile[, mask]
@@ -100,6 +100,10 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, ran
         N.class = sum(mask)
         N.null = sum(!mask)
         
+        if( (N.class < 3) | (N.null < 3) ) {
+			return(rep(0, length(Labels)))
+		}
+		
         mu.class = Matrix::rowMeans(class.profile)
         mu.null = Matrix::rowMeans(null.profile)
         
