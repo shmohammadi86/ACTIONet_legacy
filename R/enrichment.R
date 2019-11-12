@@ -189,7 +189,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
 		} else {
 			if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 				print("Using archetype.differential.signature (all archetypes)")
-				DE.profile = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
+				DE.profile = as.matrix(log1p(ACTIONet.out$archetype.differential.signature@assays[["significance"]]))
 			} else {
 				print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 				return()
