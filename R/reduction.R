@@ -1,4 +1,4 @@
-reduce.sce <- function(sce, reduced_dim = 50, norm.method = "default", max.iter = 5) {
+reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter = 5) {
     require(scran)
     require(ACTIONet)
     
@@ -67,7 +67,7 @@ batch.correct.sce.Harmony <- function(sce, batch.vec) {
 }
 
 
-reduce.and.batch.correct.sce.Harmony <- function(sce, batch.vec = NULL, reduced_dim = 50, norm.method = "default", max.iter = 5) {
+reduce.and.batch.correct.sce.Harmony <- function(sce, batch.vec = NULL, norm.method = "default", reduced_dim = 50, max.iter = 5) {
     if (is.null(batch.vec)) {
         print("You need to provide the batch vector/attr")
         return(sce)
@@ -77,7 +77,7 @@ reduce.and.batch.correct.sce.Harmony <- function(sce, batch.vec = NULL, reduced_
     batch.correct.sce.Harmony(sce, batch.vec)
 }
 
-reduce.and.batch.correct.sce.MNN <- function(sce, batch.vec = NULL, reduced_dim = 50, norm.method = "scran", MNN.k = 20) {
+reduce.and.batch.correct.sce.MNN <- function(sce, batch.vec = NULL, norm.method = "scran", reduced_dim = 50, MNN.k = 20) {
     require(scran)
     require(ACTIONet)
     
