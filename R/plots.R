@@ -249,7 +249,7 @@ plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, t
 
 }
 
-plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", title = "Gene view") {
+plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", title = "Gene view", label.text.size = 0.8) {
     if( !('unification.out' %in% names(ACTIONet.out)) ) {
 		print('Error in plot.ACTIONet.gene.view: "unification.out" is not in ACTIONet.out. Please run unify.cell.states() first.')
 		return()

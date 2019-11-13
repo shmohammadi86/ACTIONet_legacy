@@ -407,52 +407,50 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
 }
 
 
-assess.feature.specificity.pairwise <- function(sce, H, phenotype, case.pheno) {
-    phenotype.vec = as.numeric(phenotype == case.pheno)
-    
-    A = sce@assays[["logcounts"]]
-    
-    A.ctl = A[, phenotype != case.pheno]
-    p_r.ctl = Matrix::rowMeans(A.ctl)
-    
-    A.pheno = A[, phenotype == case.pheno]
-    H.pheno = H[, phenotype == case.pheno]
-    Pheno.Obs = A.pheno %*% t(H.pheno)
-    
-    B.pheno = A.pheno
-    B.pheno@x = rep(1, length(B.pheno@x))
-    p_c = Matrix::colMeans(B.pheno)
-    rho = mean(p_c)
-    beta = Matrix::t(p_c)/rho
-    Gamma = apply(H.pheno, 1, function(x) x * beta)
-    
-    Ctl.Exp = p_r.ctl %*% t(Matrix::colSums(Gamma))
-    Nu = p_r.ctl %*% t(Matrix::colSums(Gamma^2))
-    a = apply(Gamma, 2, max)
-    
-    
-    Lambda = Pheno.Obs - Ctl.Exp
-    
-    
-    logPvals.Upper = (Lambda^2)/(2 * (Nu + Lambda %*% diag(a)/3))
-    logPvals.Lower = (Lambda^2)/(2 * Nu)
-    
-    
-    
-    logPvals.Upper[Lambda < 0] = 0
-    logPvals.Lower[Lambda > 0] = 0
-    
-    logPvals.Upper[is.na(logPvals.Upper)] = 0
-    logPvals.Lower[is.na(logPvals.Lower)] = 0
-    
-    rownames(logPvals.Upper) = rownames(logPvals.Lower) = rownames(sce)
-    
-    logPvals.Upper = logPvals.Upper/log(10)
-    logPvals.Lower = logPvals.Lower/log(10)
-    
-    res = list(Up = logPvals.Upper, Down = logPvals.Lower)
-    
-    return(res)
+assess.feature.specificity.pairwise <- function(A.case, A.ctl, H.case) {
+	# Binarizing
+	B.case = A.case
+	B.case@x = rep(1, length(B.case@x))
+
+	p_r.ctl = Matrix::rowMeans(A.ctl)
+
+	Pheno.Obs = A.case %*% t(H.case)
+
+	p_c = Matrix::colMeans(B.case)
+	rho = mean(p_c)
+	beta = Matrix::t(p_c)/rho
+	Gamma = apply(H.case, 1, function(x) x * beta)
+
+	Ctl.Exp = p_r.ctl %*% t(Matrix::colSums(Gamma))
+	Nu = p_r.ctl %*% t(Matrix::colSums(Gamma^2))
+	a = apply(Gamma, 2, max)
+	
+	
+	Lambda = Pheno.Obs - Ctl.Exp
+	
+	
+	logPvals.Upper = (Lambda^2)/(2 * (Nu + Lambda %*% diag(a)/3))
+	logPvals.Lower = (Lambda^2)/(2 * Nu)
+	
+	
+	
+	logPvals.Upper[Lambda < 0] = 0
+	logPvals.Lower[Lambda > 0] = 0
+	
+	logPvals.Upper[is.na(logPvals.Upper)] = 0
+	logPvals.Lower[is.na(logPvals.Lower)] = 0
+
+	rownames(logPvals.Upper) = rownames(logPvals.Lower) = rownames(sce)
+
+	logPvals.Upper = logPvals.Upper/log(10)
+	logPvals.Lower = logPvals.Lower/log(10)
+
+	logPvals.Upper = as.matrix(logPvals.Upper)
+	logPvals.Lower = as.matrix(logPvals.Lower)
+	
+	DE.genes = list(Up = logPvals.Upper, Down = logPvals.Lower)
+
+	return(DE.genes)
 }
 
 
@@ -525,7 +523,7 @@ find.cluster.markers <- function(sce, clusters, direction = "up", batch = NULL, 
 }
 
 
-find.phenotype.associated.genes <- function(sce, phenotypes, individuals = NULL, clusters = NULL, batch = NULL, direction = "up", case.condition = 1) {
+find.cluster.phenotype.associated.genes <- function(sce, phenotypes, individuals = NULL, clusters = NULL, batch = NULL, direction = "up", case.condition = 1) {
     require(scran)
     
     conditions = as.character(unique(phenotypes))
@@ -621,6 +619,69 @@ find.phenotype.associated.genes <- function(sce, phenotypes, individuals = NULL,
 }
 
 
+find.archtype.binary.phenotype.associated.genes <- function(ACTIONet.out, sce, phenotypes, case.condition = NULL, individuals = NULL, direction = "up", core = T) {
+	if(core == T) {
+		if (("unification.out" %in% names(ACTIONet.out))) {
+			print("Using unification.out$DE.core (merged archetypes)")
+			H = as.matrix(ACTIONet.out$unification.out$H.core)
+		} else {
+			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+			return()
+		}
+	} else {
+		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
+			print("Using archetype.differential.signature (all archetypes)")
+			H = as.matrix(reconstruct.out$H_stacked)
+		} else {
+			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
+			return()
+		}
+	}   
+
+    
+    if(is.null(case.condition) | !is.character(case.condition)) {
+		print("You need to specificy the case condition name as a character name")
+		return(ACTIONet.out)
+	}
+    condition.mask = as.numeric(as.character(phenotypes) == case.condition)
+    
+    
+    
+    
+    if(is.null(individuals)) {
+		print("No individual information is provided. Performing baseline DE")
+		A = as(sce@assays[["logcounts"]], 'dgTMatrix')		
+
+		ctl.cells.mask = (condition.mask == 0)
+		case.cells.mask = (condition.mask == 1)
+
+		ctl.mask = ctl.cells.mask[(A@j+1)]
+		case.mask = case.cells.mask[(A@j+1)]
+
+		jj = A@j+1
+		ctl.j = match(jj[ctl.mask], which(ctl.cells.mask))
+		case.j = match(jj[case.mask], which(case.cells.mask))
+    
+		A.ctl = Matrix::sparseMatrix(i = A@i[ctl.mask]+1, j = ctl.j, x = A@x[ctl.mask], dims = c(nrow(A), sum(ctl.cells.mask)))
+		A.case = Matrix::sparseMatrix(i = A@i[case.mask]+1, j = case.j, x = A@x[case.mask], dims = c(nrow(A), sum(case.cells.mask)))
+		H.case = H[, case.cells.mask]
+		
+		DE.genes = assess.feature.specificity.pairwise(A.case, A.ctl, H.case)
+    }
+
+
+	if(core == T) {
+		cmd = sprintf("ACTIONet.out$unification.out$\'%s.DE\' = DE.genes", case.condition)
+		eval(parse(text = cmd))
+	} else {
+		cmd = sprintf("ACTIONet.out$\'%s.DE\' = DE.genes", case.condition)
+		eval(parse(text = cmd))
+	}   
+
+	return(ACTIONet.out)        
+}
+
+
 assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
     require(viper)
 	if(core == T) {
@@ -634,7 +695,7 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
 	} else {
 		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(ACTIONet.out$archetype.differential.signature))
+			archetype.panel = as.matrix(log1p(ACTIONet.out$archetype.differential.signature@assays[["significance"]]))
 		} else {
 			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()

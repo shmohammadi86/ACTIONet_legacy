@@ -208,7 +208,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 	} else {
 		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature)))
+			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature@assays[["significance"]])))
 		} else {
 			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()

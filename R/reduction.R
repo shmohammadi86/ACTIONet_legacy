@@ -2,26 +2,15 @@ reduce.sce <- function(sce, reduced_dim = 50, norm.method = "default", max.iter 
     require(scran)
     require(ACTIONet)
     
-    if (!("logcounts" %in% names(sce@assays))) {
-        print("Normalizing sce object")
-        
-        sce.norm = normalize.sce(sce, norm.method)
-    } else {
-        sce.norm = sce
-    }
-    
-    # Make sure rownames are consistent Check if it doesn't have rownames
     if (is.null(rownames(sce.norm))) {
         rownames(sce.norm) = sapply(1:nrow(sce), function(i) sprintf("Gene%d", i))
     }
-    rownames(sce.norm@assays[["counts"]]) = rownames(sce.norm@assays[["logcounts"]]) = rownames(sce.norm)
-    
     if (!("cell.hashtag" %in% colnames(colData(sce.norm)))) {
         print("tagging cells")
         time.tag = Sys.time()
         
         h = hashid_settings(salt = as.character(time.tag), min_length = 8)
-        cell.hashtags = sapply(1:ncol(sce), function(i) ENCODE(i, h))
+        cell.hashtags = sapply(1:ncol(sce.norm), function(i) ENCODE(i, h))
         sce.norm$cell.hashtag = cell.hashtags
         
         colData(sce.norm)$original.colnames = colnames(sce.norm)
@@ -29,7 +18,21 @@ reduce.sce <- function(sce, reduced_dim = 50, norm.method = "default", max.iter 
         
         metadata(sce.norm)$tagging.time = time.tag
     }
-    colnames(sce.norm@assays[["counts"]]) = colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
+
+    if (!("logcounts" %in% names(sce@assays))) {
+        print("Normalizing sce object")
+        
+        sce.norm = normalize.sce(sce, norm.method)
+		rownames(sce.norm@assays[["counts"]]) = rownames(sce.norm@assays[["logcounts"]]) = rownames(sce.norm)
+		colnames(sce.norm@assays[["counts"]]) = colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
+    } else {
+        sce.norm = sce
+		rownames(sce.norm@assays[["logcounts"]]) = rownames(sce.norm)
+		colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
+    }
+    
+    # Make sure rownames are consistent Check if it doesn't have rownames
+    
     
     print("Running main reduction")
     suppressWarnings({
