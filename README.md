@@ -60,9 +60,9 @@ ACTIONet uses [SingleCellExperiment (SCE)](https://www.bioconductor.org/packages
 Running ACTIONet consists of two consecutive steps: (1) **Reduction**, and (2) **ACTIONet construction**
 
 ### Reduction
-In this step, we  preprocess single-cell profile, stored in `SCE` format, to be compatible with the ACTIONet framework. This allows for usage of various -omics profiles, as well as to do simultanous bah-correction (optional). For sc/sn-RNASeq, there are two main options for reduction:
+In this step, we preprocess the single-cell profile, stored in `SCE` format, to be compatible with the ACTIONet framework. This allows for usage of various -omics profiles, as well as to do simultaneous batch-correction (optional). For sc/sn-RNASeq, there are two main options for reduction:
 	(i). **Without batch-correction**: In this case, you can use the main function `reduce.sce(sce)` to reduce the single-cell data stored in the sce object.
-	(ii) **With batch-correction**: There are currently two methods supported within the ACTIONet framework for batch-correction: (a) [Harmony](https://github.com/immunogenomics/harmony), and (b) [Mutual Nearest Neighbor (MNN)](https://bioconductor.org/packages/release/bioc/html/batchelor.html). For the former, please use `reduce.and.batch.correct.sce.Harmony(sce, batch.vec)`, while for the latter you can use `reduce.and.batch.correct.sce.MNN(sce, batch.vec)` fuciton. In both cases, `batch.vec` is encodes the batches and must have the same number of elements as the cells in the `sce` object (ncol(sce))
+	(ii) **With batch-correction**: There are currently two methods supported within the ACTIONet framework for batch-correction: (a) [Harmony](https://github.com/immunogenomics/harmony), and (b) [Mutual Nearest Neighbor (MNN)](https://bioconductor.org/packages/release/bioc/html/batchelor.html). For the former, please use `reduce.and.batch.correct.sce.Harmony(sce, batch.vec)`, while for the latter you can use `reduce.and.batch.correct.sce.MNN(sce, batch.vec)` function. In both cases, `batch.vec` is encodes the batches and must have the same number of elements as the cells in the `sce` object (ncol(sce))
 	
 In all of these functions, if the sce object is not already normalized, you can specify a normalization method by passing the `norm.method` parameter. Current options are:
 
@@ -80,8 +80,8 @@ While in most cases `default` method works well for constructing ACTIONet, `scra
 ### ACTIONet Reconstruction
 The input for this step is the **reduced sce** object. The main interface to run ACTIONet is through `run.ACTIONet(reduced.sce)` function. Additional options to consider are:
 - `k_max`: defines the maximum resolution and is suggested to be set to 20 for most cases, and 30 for deeper analysis and identifying rare cell-types.
-- `thread_no`: indicates the number of parallel processig threads that are used for parallelization. 
-- `layout.compactness` is a value between *[0-100]* and controls the overall compactness in graph layout stage (this can be re-adjusted afterwards).
+- `thread_no`: indicates the number of parallel processing threads that are used for parallelization. 
+- `layout.compactness` is a value between *[0-100]* and controls the overall compactness in the graph layout stage (this can be re-adjusted afterward).
 
 ### Simple Example
 ```{r}
@@ -97,7 +97,7 @@ plot.ACTIONet.interactive(ACTIONet.out)
 ```
 
 # Tutorials
-ACTIONet is a comprehensive all-in-one framework that allows a host of different posibble analysis. The following list is being updated as new functionalities are being added:
+ACTIONet is a comprehensive all-in-one framework that allows a host of different possible analyses. The following list is being updated as new functionalities are being added:
 
 ## Main Tutorials
 1. [Hands-on experience with PBMC 10X data](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial1_HandsOn.html)
