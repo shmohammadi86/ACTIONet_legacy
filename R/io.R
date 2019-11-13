@@ -1,9 +1,15 @@
-import.sce.from.count.matrix <- function(counts, gene.names, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
-    counts = as(as.matrix(counts), "sparseMatrix")
+import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations = NULL, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
+	if(!is.sparseMatrix(counts)) {
+		counts = as(counts, "sparseMatrix")
+	}	
 	rownames(counts) = gene.names    
     
-    sce <- SingleCellExperiment(assays = list(counts = counts))
-    
+    if(is.null(sample_annotations)) {
+		sce <- SingleCellExperiment(assays = list(counts = counts))
+    } else {
+        sce <- SingleCellExperiment(assays = list(counts = counts), colData = sample_annotations)
+	}
+	
     if (prefilter) {
         cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]

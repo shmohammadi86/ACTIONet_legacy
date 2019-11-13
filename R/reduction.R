@@ -2,6 +2,8 @@ reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter 
     require(scran)
     require(ACTIONet)
     
+    sce.norm = sce
+    
     if (is.null(rownames(sce.norm))) {
         rownames(sce.norm) = sapply(1:nrow(sce), function(i) sprintf("Gene%d", i))
     }
