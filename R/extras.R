@@ -591,3 +591,68 @@ doubleNorm <- function(Enrichment, rescale = T) {
 	Enrichment.scaled = Enrichment.scaled / max(Enrichment.scaled)
 	return(Enrichment.scaled)
 }
+
+
+get.archetype.markers <- function(ACTIONet.out, top.genes = 20, core = T) {
+	if(core == T) {
+		cell.state.DE = ACTIONet.out$unification.out$DE.core@assays[["significance"]]
+	} else {
+		cell.state.DE = ACTIONet.out$archetype.differential.signature@assays[["significance"]]
+	}
+	Top.genes = apply(cell.state.DE, 2, function(x) rownames(cell.state.DE )[order(x, decreasing = T)[1:top.genes]])
+	
+	return(Top.genes)
+}
+
+get.archetype.differential.scores <- function(ACTIONet.out, top.genes = 20, core = T) {
+	if(core == T) {
+		cell.state.DE = ACTIONet.out$unification.out$DE.core@assays[["significance"]]
+	} else {
+		cell.state.DE = ACTIONet.out$archetype.differential.signature@assays[["significance"]]
+	}
+	Top.genes.row = apply(cell.state.DE, 2, function(x) order(x, decreasing = T)[1:top.genes])
+
+	scores = (cell.state.DE[Top.genes.row, ])
+	return(scores)
+}
+
+get.annotation.markers <- function(ACTIONet.out, annotation.name, top.genes = 20, core = T) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	
+	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
+		print("Please run compute.annotations.feature.specificity() first")
+		return()		
+	}
+	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+
+	Top.genes = apply(DE.profile, 2, function(x) rownames(DE.profile)[order(x, decreasing = T)[1:top.genes]])
+	
+	return(Top.genes)
+}
+
+get.annotation.differential.scores <- function(ACTIONet.out, annotation.name, top.genes = 20, core = T) {
+	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
+	if(length(idx) == 0) {
+		R.utils::printf('Annotation %s not found\n', annotation.name)
+		return(ACTIONet.out)
+	}
+	
+	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
+	
+	if(is.null(ACTIONet.out$annotations[[idx]]$DE.profile)) {
+		print("Please run compute.annotations.feature.specificity() first")
+		return()		
+	}
+	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+	Top.genes.row = apply(DE.profile, 2, function(x) order(x, decreasing = T)[1:top.genes])
+
+	scores = (DE.profile[Top.genes.row, ])
+	return(scores)
+}
+

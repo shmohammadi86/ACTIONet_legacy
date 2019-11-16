@@ -196,7 +196,10 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     require(Matrix)
     require(stringr)
     
-
+	if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
+		marker.genes = sapply(arker.genes, function(x) rownames(arker.genes)[x > 0])
+	}
+	
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
@@ -561,7 +564,7 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
     return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name = NULL, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
     arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
     
     Enrichment = arch.annot$Enrichment    
@@ -572,7 +575,7 @@ annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.ge
 		eval(parse(text=cmd))		
 	}
 	
-	cmd = sprintf("scores = ACTIONet.out$annotations$\"%s\"$Labels.confidence", annotation.name)	
+	cmd = sprintf("scores = sort(ACTIONet.out$annotations$\"%s\"$Labels.confidence, decreasing = T)", annotation.name)	
 	eval(parse(text=cmd))
 
 	nnz = round(sum(scores)^2 / sum(scores^2))

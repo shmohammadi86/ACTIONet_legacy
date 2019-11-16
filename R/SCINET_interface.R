@@ -50,12 +50,13 @@ run.archetype.SCINET <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight
 	cellstate.nets.list = as.list(cellstate.nets)
 	
 	print("Computing topological specificity of genes");
-	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.adj) {
+	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
 		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
 		V(G)$name = common.genes
 		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
 		z.scores = topo.spec(G, spec.sample_no)
 		V(G)$specificity = 1 / (1 + exp(-z.scores))
+		G = delete_vertices(G, V(G)[strength(G) == 0])		
 	})
 	
 	if(core == T) {
@@ -92,7 +93,7 @@ run.annotation.SCINET <- function(ACTIONet.out, annotation_name, G=NULL, core = 
 	
 	if( is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile) ) {
 		print("DE.profile of the annotation is missing. Computing it from scratch (please wait) ... ");		
-		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation.cluster)
+		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation_name)
 	}
 	DE.profile  = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
 	
@@ -111,16 +112,20 @@ run.annotation.SCINET <- function(ACTIONet.out, annotation_name, G=NULL, core = 
 	cellstate.nets.list = as.list(cellstate.nets)
 	
 	print("Computing topological specificity of genes");
-	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.adj) {
+	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
 		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
 		V(G)$name = common.genes
 		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
 		z.scores = topo.spec(G, spec.sample_no)
 		V(G)$specificity = 1 / (1 + exp(-z.scores))
+		G = delete_vertices(G, V(G)[strength(G) == 0])		
 	})
+
+	names(cellstate.nets.list.igraph) = colnames(ACTIONet.out$annotations[[cl.idx]]$DE.profile)
 	
-	cmd = sprintf("ACTIONet.out$SCINET.out$\'%`\' = cellstate.nets.list.igraph", annotation_name)
+	cmd = sprintf("ACTIONet.out$SCINET.out$\`%s\` = cellstate.nets.list.igraph", annotation_name)
 	eval(parse(text=cmd))
+
 	
 	return(ACTIONet.out)
 }
@@ -164,15 +169,18 @@ run.DE.SCINET <- function(DE.profile.out, annotation_name = "DE", G=NULL, core =
 	cellstate.nets.list = as.list(cellstate.nets)
 	
 	print("Computing topological specificity of genes");
-	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.adj) {
+	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
 		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
 		V(G)$name = common.genes
 		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
 		z.scores = topo.spec(G, spec.sample_no)
 		V(G)$specificity = 1 / (1 + exp(-z.scores))
+		G = delete_vertices(G, V(G)[strength(G) == 0])				
 	})
 	
-	cmd = sprintf("ACTIONet.out$SCINET.out$\'%`\' = cellstate.nets.list.igraph", annotation_name)
+	names(cellstate.nets.list.igraph) = colnames(DE.profile)
+	
+	cmd = sprintf("ACTIONet.out$SCINET.out$\`%s\` = cellstate.nets.list.igraph", annotation_name)
 	eval(parse(text=cmd))
 
 	return(ACTIONet.out)

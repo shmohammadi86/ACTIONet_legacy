@@ -188,6 +188,7 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
 
 
 
+
 plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, top.features = 5, CPal = NULL, title = "Feature view", label.text.size = 1) {
 	if(ncol(feature.enrichment.table) != nrow(ACTIONet.out$unification.out$H.core)) {
 		feature.enrichment.table = Matrix::t(feature.enrichment.table)
@@ -229,8 +230,9 @@ plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, t
 
 	x = feature.coors[, 1]
 	y = feature.coors[, 2]
+    plot (x, y, type = "n", col = feature.colors, axes = FALSE, xlab = "", ylab = "", main = title)
+
 	words = selected.features
-    plot(x, y, type = "n", col = feature.colors, axes = FALSE, xlab = "", ylab = "", main = title)
     lay <- wordlayout(x, y, words, label.text.size)
     for (i in 1:length(x)) {
         xl <- lay[i, 1]
@@ -239,13 +241,16 @@ plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, t
         h <- lay[i, 4]
         if (x[i] < xl || x[i] > xl + w || y[i] < yl || y[i] > 
             yl + h) {
-            points(x[i], y[i], pch = 16, col = "black", cex = 0.75*label.text.size)
+            points(x[i], y[i], pch = 16, col = colorspace::darken(feature.colors[[i]], 0.6), cex = 0.75*label.text.size)
             nx <- xl + 0.5 * w
             ny <- yl + 0.5 * h
             lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(feature.colors[[i]], 0.5))
         }
     }
-    text(lay[, 1] + 0.5 * lay[, 3], lay[, 2] + 0.5 * lay[, 4], words, col = feature.colors, cex = label.text.size, xlab = "", ylab = "", main = title)
+    #plot.new()
+    loc.x = lay[, 1] + 0.5 * lay[, 3]
+    loc.y = lay[, 2] + 0.5 * lay[, 4]
+    text(loc.x, loc.y, words, col = feature.colors, cex = label.text.size)
 
 }
 
@@ -301,7 +306,7 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
         h <- lay[i, 4]
         if (x[i] < xl || x[i] > xl + w || y[i] < yl || y[i] > 
             yl + h) {
-            points(x[i], y[i], pch = 16, col = "black", cex = 0.75*label.text.size)
+            points(x[i], y[i], pch = 16, col = colorspace::darken(gene.colors[[i]], 0.6), cex = 0.75*label.text.size)
             nx <- xl + 0.5 * w
             ny <- yl + 0.5 * h
             lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(gene.colors[[i]], 0.5))
@@ -572,6 +577,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
         
     ## Create color gradient generator
     if (CPal %in% c("inferno", "magma", "viridis", "BlGrRd", "RdYlBu", "Spectral")) {
+		require(viridis)
         Pal_grad = switch(CPal, inferno = inferno(500, alpha = 0.8), magma = magma(500, alpha = 0.8), viridis = viridis(500, alpha = 0.8), 
             BlGrRd = colorRampPalette(c("blue", "grey", "red"))(500), Spectral = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, 
                 name = "Spectral"))))(100), RdYlBu = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100))
@@ -585,13 +591,13 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
 		x = log1p(x)
 	
     if (prune == TRUE) {
-        x = prune.cell.scores(ACTIONet.out, x, alpha_val = alpha.val, transform = FALSE)
+        x = prune.cell.scores(ACTIONet.out, x, alpha_val = 0, transform = FALSE)
     }
     
     if (nonparameteric == TRUE) {
-        vCol = scales::col_bin(Pal_grad, domain = NULL, bin = 100, na.color = NA.col)(rank(x))
+        vCol = scales::col_numeric(Pal_grad, domain = NULL, na.color = NA.col)(rank(x))
     } else {
-        vCol = scales::col_bin(Pal_grad, domain = NULL, bin = 100, na.color = NA.col)(x)
+        vCol = scales::col_numeric(Pal_grad, domain = NULL, na.color = NA.col)(x)
     }	
 
     if (!is.null(transparency.attr)) {
@@ -623,7 +629,9 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
     
     gg = unique(unlist(marker.genes))
     all.marker.genes = sort(intersect(gg, rownames(sce)))
-    
+    if(length(all.marker.genes) == 0) {
+		return()
+	}
     
     imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = FALSE, alpha_val = alpha_val)
     

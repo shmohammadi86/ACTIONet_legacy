@@ -494,6 +494,78 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     return(imputed.gene.expression)
 }
 
+impute.genes.using.archetype <- function(ACTIONet.out, genes, prune = FALSE) {
+    require(igraph)
+    
+    genes = unique(genes)
+
+	profile = 
+    
+    matched.genes = intersect(genes, rownames(sce))
+    matched.idx = match(matched.genes, rownames(sce))
+    
+    # Smooth/impute gene expressions
+    if (!(expr.slot %in% names(sce@assays))) {
+        R.utils::printf("%s is not in assays of sce\n", expr.slot)
+    }
+    
+    if (length(matched.idx) > 1) {
+        raw.gene.expression = Matrix::t(as(sce@assays[[expr.slot]][matched.idx, ], "dgTMatrix"))
+        U = raw.gene.expression
+        U[U < 0] = 0
+        cs = Matrix::colSums(U)
+        U = as.matrix(Matrix::sparseMatrix(i = U@i + 1, j = U@j + 1, x = U@x/cs[U@j + 1], dims = dim(U)))
+        U = as.matrix(U[, cs > 0])
+        gg = matched.genes[cs > 0]
+    } else {
+        raw.gene.expression = matrix(sce@assays[[expr.slot]][matched.idx, ])
+        U = raw.gene.expression/sum(raw.gene.expression)
+        gg = matched.genes
+    }
+    
+	imputed.gene.expression = batchPR(G, U, alpha_val, thread_no)
+    
+    imputed.gene.expression[is.na(imputed.gene.expression)] = 0
+    
+    # Prune values
+    if (prune == TRUE) {
+        imputed.gene.expression = apply(imputed.gene.expression, 2, function(x) {
+            cond = sweepcut(ACTIONet.out$build.out$ACTIONet, x)
+            idx = which.min(cond)
+            
+            perm = order(x, decreasing = TRUE)
+            x[perm[(idx + 1):length(x)]] = 0
+            
+            return(x)
+        })
+    }
+    
+    # rescale
+    if (rescale) {
+        imputed.gene.expression = sapply(1:dim(imputed.gene.expression)[2], function(col) {
+            x = raw.gene.expression[, col]
+            y = imputed.gene.expression[, col]
+            
+            x.Q = quantile(x, 1)
+            y.Q = quantile(y, 1)
+            
+            if (y.Q == 0) {
+                return(array(0, length(x)))
+            }
+            
+            y = y * x.Q/y.Q
+            
+            y[y > max(x)] = max(x)
+            
+            return(y)
+        })
+    }
+    
+    colnames(imputed.gene.expression) = gg
+    
+    return(imputed.gene.expression)
+}
+
 assess.label.local.enrichment <- function(P, Labels) {
 	if( is.null(names(Labels)) ){
 		names(Labels) = as.character(Labels)
