@@ -211,7 +211,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
     # prune annotations
     cs = Matrix::colSums(ind.mat)
     mask = (min.size <= cs) & (cs <= max.size)
-    ind.mat = ind.mat[, mask]
+    ind.mat = as.matrix(ind.mat[, mask])
     #rs = Matrix::rowSums(ind.mat)
     #ind.mat = ind.mat[rs > 0, ]
     

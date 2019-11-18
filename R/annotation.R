@@ -570,7 +570,7 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
 }
 
 annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
-    arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T, filter = T)
+    arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
     
     Enrichment = arch.annot$Enrichment    
     Enrichment[Enrichment < min.enrichment] = 0

@@ -622,7 +622,7 @@ get.annotation.markers <- function(ACTIONet.out, annotation.name, top.genes = 20
 	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
 	if(length(idx) == 0) {
 		R.utils::printf('Annotation %s not found\n', annotation.name)
-		return(ACTIONet.out)
+		return()
 	}
 	
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
@@ -642,7 +642,7 @@ get.annotation.differential.scores <- function(ACTIONet.out, annotation.name, to
 	idx = which((names(ACTIONet.out$annotations) == annotation.name) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == annotation.name)))
 	if(length(idx) == 0) {
 		R.utils::printf('Annotation %s not found\n', annotation.name)
-		return(ACTIONet.out)
+		return()
 	}
 	
 	R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)

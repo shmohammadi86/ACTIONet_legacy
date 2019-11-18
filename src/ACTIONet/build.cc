@@ -16,7 +16,7 @@ namespace ACTIONetcore {
 		mat H_stacked_norm = normalise(H_stacked, 1);		
 		
 		mat logProb = log(H_stacked_norm);
-		logProb.transform( [](double val) { return (isinf(val)?0:val); } );
+		logProb.transform( [](double val) { return (__builtin_isinf(val)?0:val); } );
 		
 		vec entropies = -trans(sum(H_stacked_norm % logProb, 0));
 				
@@ -38,7 +38,7 @@ namespace ACTIONetcore {
 			for(int c = 0; c < sample_no; c++) {
 				logM.col(c) = log(0.5*(p + H_stacked_norm.col(c)));
 			}		
-			logM.transform( [](double val) { return ((isinf(val) || isnan(val))?0:val); } );
+			logM.transform( [](double val) { return ((__builtin_isinf(val) || __builtin_isnan(val))?0:val); } );
 					
 			vec DpM = trans(-p.t()*logM - entropies(v));
 			vec DQM = trans(-sum(H_stacked_norm % logM, 0)) - entropies;
@@ -48,7 +48,7 @@ namespace ACTIONetcore {
 		
 			D.col(v) = sqrt(JS_div); // Sqrt of JS Div, not JS Div, is a metric
 		}		
-		D.transform( [](double val) { return (isnan(val)?0:val); } );
+		D.transform( [](double val) { return (__builtin_isnan(val)?0:val); } );
 		D.transform( [](double val) { val = val < 0? 0:val; val = 1 < val? 1:val; return (val); } ); // Make sure that scores are normalized properly
 		
 		if(verbose > 0)
