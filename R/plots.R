@@ -626,8 +626,6 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
     if (!sum(sapply(marker.genes, length) != 1) & is.null(names(marker.genes))) {
         names(marker.genes) = marker.genes
     }
-    Pal = ggpubr::get_palette(CPal, length(names(marker.genes)))
-    names(Pal) = names(marker.genes)
     
     gg = unique(unlist(marker.genes))
     all.marker.genes = sort(intersect(gg, rownames(sce)))
@@ -647,7 +645,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
         
         x = imputed.marker.expression[, gene]
 
-		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = Pal[[celltype.name]], title = gene, prune = prune, alpha_val = alpha_val)
+		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = CPal, title = gene, prune = prune, alpha_val = alpha_val)
     })
 }
 
