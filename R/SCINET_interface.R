@@ -1,4 +1,4 @@
-run.archetype.SCINET <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.archetype <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -59,16 +59,10 @@ run.archetype.SCINET <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight
 		G = delete_vertices(G, V(G)[strength(G) == 0])		
 	})
 	
-	if(core == T) {
-		ACTIONet.out$SCINET.out$arch.core = cellstate.nets.list.igraph
-	} else {
-		ACTIONet.out$SCINET.out$arch.all = cellstate.nets.list.igraph
-	}                  
-	
-	return(ACTIONet.out)
+	return(cellstate.nets.list.igraph)
 }
 
-run.annotation.SCINET <- function(ACTIONet.out, annotation_name, G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.annotation <- function(ACTIONet.out, annotation_name, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -123,15 +117,11 @@ run.annotation.SCINET <- function(ACTIONet.out, annotation_name, G=NULL, core = 
 
 	names(cellstate.nets.list.igraph) = colnames(ACTIONet.out$annotations[[cl.idx]]$DE.profile)
 	
-	cmd = sprintf("ACTIONet.out$SCINET.out$\`%s\` = cellstate.nets.list.igraph", annotation_name)
-	eval(parse(text=cmd))
-
-	
-	return(ACTIONet.out)
+	return(cellstate.nets.list.igraph)
 }
 
 
-run.DE.SCINET <- function(DE.profile.out, annotation_name = "DE", G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -148,7 +138,7 @@ run.DE.SCINET <- function(DE.profile.out, annotation_name = "DE", G=NULL, core =
 	}
 
 
-	DE.profile  = log1p(as.matrix(DE.profile.out@assays[["significance"]]))
+	DE.profile  = log1p(as.matrix(gene.scores.mat))
 	if(is.null(DE.profile)) {
 		print("Error in run.DE.SCINET: DE.profile.out is not ACTIONet-compatible SCE object")
 		return(ACTIONet.out)
@@ -179,9 +169,6 @@ run.DE.SCINET <- function(DE.profile.out, annotation_name = "DE", G=NULL, core =
 	})
 	
 	names(cellstate.nets.list.igraph) = colnames(DE.profile)
-	
-	cmd = sprintf("ACTIONet.out$SCINET.out$\`%s\` = cellstate.nets.list.igraph", annotation_name)
-	eval(parse(text=cmd))
 
-	return(ACTIONet.out)
+	return(cellstate.nets.list.igraph)
 }

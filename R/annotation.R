@@ -185,9 +185,9 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
     
     res = list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = logPvals)
     
-    ACTIONet.out$annotations[[cl.idx]]$labelEnrichment = res
-    
-    return(ACTIONet.out)
+    #ACTIONet.out$annotations[[cl.idx]]$labelEnrichment = res
+    #return(ACTIONet.out)
+    return(res)
 }
 
 annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = T) {
@@ -282,9 +282,11 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     Z[is.na(Z)] = 0
     Labels = colnames(Z)[apply(Z, 1, which.max)]
     
-    L = names(marker.genes)
-    L = L[L %in% Labels]
-    Labels = factor(Labels, levels = L)
+    #L = names(marker.genes)
+    #L.levels = L[L %in% Labels]
+    #Labels = match(L, L.levels)
+    #names(Labels) = L.levels
+    #Labels = factor(Labels, levels = L)
     Labels.conf = apply(Z, 1, max)
     
     names(Labels) = rownames(archetype.panel)
@@ -391,9 +393,10 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
     
     res = list(Labels = clusterLabels, cellLabels = cellLabels, fullLabels = fullLabels, cellFullLabels = cellFullLabels, Enrichment = Z)
     
-    ACTIONet.out$annotations[[cl.idx]]$markerEnrichment = res
+    #ACTIONet.out$annotations[[cl.idx]]$markerEnrichment = res
+    #return(ACTIONet.out)
     
-    return(ACTIONet.out)
+    return(res)
 }
 
 
@@ -508,7 +511,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 }
 
 
-map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T) {
+map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale = T) {
     if( core == T ) {
 		cell.scores.mat = ACTIONet.out$unification.out$H.core		
 		
@@ -524,8 +527,10 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
         Enrichment = t(Enrichment)
     }
 
-
-	Enrichment.scaled = doubleNorm(Enrichment)
+	if(scale == T)
+		Enrichment.scaled = doubleNorm(Enrichment)
+	else
+		Enrichment.scaled = Enrichment
     
     cell.Enrichment.mat = cell.scores.mat %*% Enrichment.scaled
     colnames(cell.Enrichment.mat) = colnames(Enrichment)
@@ -534,8 +539,8 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     return(cell.Enrichment.mat)
 }
 	
-annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL) {
-    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment)
+annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, scale = T) {
+    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = F)
     
     cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
     names(cell.Labels) = colnames(cell.Enrichment.mat)[cell.Labels]
@@ -565,29 +570,43 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
 }
 
 annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
-    arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
+    arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T, filter = T)
     
     Enrichment = arch.annot$Enrichment    
-    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name)
+    Enrichment[Enrichment < min.enrichment] = 0
+    
+    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name, scale = F)
 
-	if(post.update == T) {
-		cmd = sprintf("ACTIONet.out = correct.cell.annotations(ACTIONet.out, \"%s\", \"%s\")", annotation.name, annotation.name)	
-		eval(parse(text=cmd))		
+	# Filter unreliable labels
+	if(filter ==  T) {
+		cmd = sprintf("scores = sort(ACTIONet.out$annotations$\"%s\"$Labels.confidence, decreasing = T)", annotation.name)	
+		eval(parse(text=cmd))
+
+		nnz = round(sum(scores)^2 / sum(scores^2))
+		threshold = scores[nnz]
+
+		cmd = sprintf("filter.mask = ACTIONet.out$annotations$\"%s\"$Labels.confidence < threshold", annotation.name)	
+		eval(parse(text=cmd))
+
+		if(post.update == T) {
+			cmd = sprintf("ACTIONet.out = correct.cell.annotations(ACTIONet.out, \"%s\", \"%s\")", annotation.name, annotation.name)	
+			eval(parse(text=cmd))		
+		}
+
+
+		cmd = sprintf("ACTIONet.out$annotations$\"%s\"$Labels[filter.mask] = 0", annotation.name)	
+		eval(parse(text=cmd))
+
+		
+		cmd = sprintf("X = names(ACTIONet.out$annotations$\"%s\"$Labels)", annotation.name)	
+		eval(parse(text=cmd))
+		
+		X[filter.mask] = '?'
+		
+		cmd = sprintf("names(ACTIONet.out$annotations$\"%s\"$Labels) = X", annotation.name)	
+		eval(parse(text=cmd))
 	}
 	
-	cmd = sprintf("scores = sort(ACTIONet.out$annotations$\"%s\"$Labels.confidence, decreasing = T)", annotation.name)	
-	eval(parse(text=cmd))
-
-	nnz = round(sum(scores)^2 / sum(scores^2))
-	threshold = scores[nnz]
-
-	cmd = sprintf("filter.mask = ACTIONet.out$annotations$\"%s\"$Labels.confidence < threshold", annotation.name)	
-	eval(parse(text=cmd))
-
-
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\"$Labels[filter.mask] = names(ACTIONet.out$annotations$\"%s\"$Labels[filter.mask]) = NA", annotation.name, annotation.name)	
-	eval(parse(text=cmd))
-
 	
     return(ACTIONet.out)
 }

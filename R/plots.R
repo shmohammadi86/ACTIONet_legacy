@@ -1,7 +1,7 @@
-ACTIONet.color.bank = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#808080", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488", "#f032e6", "#bcf60c")
+ACTIONet.color.bank0 = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#808080", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488", "#f032e6", "#bcf60c")
 
 # From: https://github.com/r3fang/SnapATAC/blob/master/R/plottings-utilities.R
-ACTIONet.color.bank1 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
+ACTIONet.color.bank = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
     "#774411", "#AA7744", "#AA4455", "#117744", "#000080", "#44AA77", "#AA4488", "#DDAA77", "#D9D9D9", "#BC80BD", "#FFED6F", "#7FC97F", 
     "#BEAED4", "#FDC086", "#FFFF99", "#386CB0", "#F0027F", "#BF5B17", "#666666", "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", 
     "#E6AB02", "#A6761D", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", 
@@ -21,8 +21,8 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
-	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
+	node.size = 1, CPal = ACTIONet.color.bank, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
     
     node.size = node.size * 0.5
     
@@ -137,6 +137,8 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     }
     
     if ( (suppress.legend == FALSE) & !is.null(Annot) ) {
+		#par(xpd = T, mar = par()$mar * c(1,1,1,1.1))
+        #legend(legend.pos, legend = Annot, fill = Pal, cex = 0.5, bty = "n", inset=c(-0.1,0))
         legend(legend.pos, legend = Annot, fill = Pal, cex = 0.5, bty = "n")
     }    
 }

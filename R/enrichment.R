@@ -349,6 +349,54 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 }
 
 
+geneset.enrichment.gene.scores <- function(ACTIONet.out, gene.scores, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", core = T) {
+	DE.profile = as.matrix(gene.scores)
+	
+    if (is.null(rownames(DE.profile))) {
+        print("Rows of the DE profile have to be named with genes.")
+    }
+    
+    require(Matrix)
+    if (is.matrix(genesets) | is.sparseMatrix(genesets)) {    
+		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
+	}
+	ind.mat = as(sapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)), "sparseMatrix")
+	rownames(ind.mat) = rownames(DE.profile)
+    
+    # prune annotations
+    cs = Matrix::colSums(ind.mat)
+    mask = (min.size <= cs) & (cs <= max.size)
+    ind.mat = ind.mat[, mask]
+    #rs = Matrix::rowSums(ind.mat)
+    #ind.mat = ind.mat[rs > 0, ]
+    
+    
+    # prune enrichment profile DE.profile[DE.profile < min.enrichment] = 0 rs = Matrix::rowSums(DE.profile) DE.profile = DE.profile[rs
+    # > 0, ]
+    
+    common.genes = intersect(rownames(DE.profile), rownames(ind.mat))
+    if (!is.null(genes.subset)) {
+        common.genes = intersect(common.genes, genes.subset)
+    }    
+	filtered.genes = rownames(DE.profile)[grepl(blacklist.pattern, rownames(DE.profile), ignore.case = T)]
+	common.genes = setdiff(common.genes, filtered.genes)
+	
+    
+    idx = match(common.genes, rownames(DE.profile))
+    DE.profile = DE.profile[idx, ]
+    
+    idx = match(common.genes, rownames(ind.mat))
+    X = ind.mat[idx, ]
+    
+    # Normalize scores to avoid heavy-tail side-effect(s) pos.scores = DE.profile pos.scores[pos.scores < 0] = 0
+    A = DE.profile 
+    
+    logPvals = Chernoff.enrichment.noRowScaling(A, X)
+        
+    return(logPvals)
+}
+
+
 assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {	
 	library(Matrix)
 	print("Computing feature specificity ... ")

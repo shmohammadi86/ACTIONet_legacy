@@ -569,11 +569,13 @@ gen.colors <- function(Pal, color.no, plot.cols) {
 }
 
 
-doubleNorm <- function(Enrichment, rescale = T) {
-    if(min(Enrichment) < 0) {
-		Enrichment = exp(Enrichment)
-	}
-	if( (min(Enrichment) >= 0) & (max(Enrichment) > 100) & (rescale == T) ) {
+doubleNorm <- function(Enrichment, log.transform = T, min.threshold = 0) {
+    #if(min(Enrichment) < 0) {
+	#	Enrichment = exp(Enrichment)
+	#}
+	Enrichment[Enrichment < min.threshold] = 0
+	
+	if( (max(Enrichment) > 100) & (log.transform == T) ) {
 		Enrichment = log1p(Enrichment)	
 	} 
 	Enrichment[is.na(Enrichment)] = 0

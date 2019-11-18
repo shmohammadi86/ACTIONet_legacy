@@ -99,15 +99,11 @@ plot.ACTIONet.interactive(ACTIONet.out)
 # Tutorials
 ACTIONet is a comprehensive all-in-one framework that allows a host of different possible analyses. The following list is being updated as new functionalities are being added:
 
-## Main Tutorials
 1. [Hands-on experience with PBMC 10X data](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial1_HandsOn.html)
-2. [Automated cell-annotation using known markers](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial2_CellAnnotation.html)
+2. [Automated cell annotation using known markers](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial2_CellAnnotation.html)
 3. [Multi-resolution network-based clustering](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial3_Clustering.html)
 4. [Advanced visualization](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial4_Visualization.html)
 5. [Fast and scalable approach for differential analysis of cell states, clusters, and phenotypes](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial5_Differential.html)
-6. [Pathway enrichment analysis in 2 lines](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial6_Enrichment.html)
-
-
-## Advanced Tutorials
-1. [Deeper insight onto cell states](http://compbio.mit.edu/ACTIONet/tutorials/AdvTutorial1_Cells.html)
-2. [Deeper understanding of the internal cell annotation structure](http://compbio.mit.edu/ACTIONet/tutorials/AdvTutorial2_AnnotStructure.html)
+6. [Pathway enrichment analysis -- the easy way](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial6_Enrichment.html)
+7. [Gene expression imputation and gene-gene correlation analysys](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial7_Imputation.html)
+8. [Constructing cell-type/state-specific interactomes](http://compbio.mit.edu/ACTIONet/tutorials/Tutorial8_SCINET.html)
