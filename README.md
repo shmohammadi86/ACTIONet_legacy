@@ -1,23 +1,10 @@
 
-# Installation 
+# Installation
+## Prerequisites 
 
-## Linux (Ubuntu)
+1. *ACTIONet* package depends on the [NetLibR](https://github.com/shmohammadi86/NetLibR) package. Please install it before installin ACTIONet.
 
-Install igraph c++ interface -- in terminal
-
-```{bash}
-sudo apt-get install libigraph0-dev
-# Or install it from the source from https://igraph.org/c/.
-```
-
-Now you can install ACTIONet package with devtools in R:
-
-```{r}
-install.packages("devtools")
-devtools::install_github("shmohammadi86/ACTIONet")
-```
-
-## Mac OS
+2. For optimal performace, use te latest version of compiler. This is crucial in Mac OS to ensure the support for OpenMP. Use the following instructions to update Mac OS compiler (if needed):
 
 Install the latest version of clang compiler with OpenMP support -- in terminal
 
@@ -29,21 +16,12 @@ Make sure it is set as the default compiler -- in terminal
 ```{bash}
 mkdir -p ~/.R && echo -e "CXXFLAGS=-std=c++14 -lstdc++ -w -m64 -fPIC -march=native -O4\nCXX=/usr/local/opt/llvm/bin/clang++\n" > ~/.R/Makevars
 ```
-
-Install igraph c++ interface -- in terminal
-
-```{bash}
-brew install igraph
-# Or install it from the source from https://igraph.org/c/.
-```
-
-Now you can install ACTIONet package with devtools in R:
+## Installing from the main repository
 
 ```{r}
 install.packages("devtools")
 devtools::install_github("shmohammadi86/ACTIONet")
 ```
-
 # Basic Usage
 ## Import single-cell expression
 ACTIONet uses [SingleCellExperiment (SCE)](https://www.bioconductor.org/packages/release/bioc/vignettes/SingleCellExperiment/inst/doc/intro.html) format to store and manipulate single-cell expression profiles. For convenience, a series of functions have been written as part of the ACTIONet package to import data from different sources:
