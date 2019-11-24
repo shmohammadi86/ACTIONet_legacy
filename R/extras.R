@@ -28,7 +28,7 @@ map.clusters <- function(Labels, clusters) {
     W[is.na(W)] = 0
     W[W > 300] = 300
     
-    W.matched = MWM(W)
+    W.matched = MWM_hungarian(W)
     W.matched = as(W.matched, "dgTMatrix")
     
     updated.Labels = rep(NA, length(Labels))
@@ -658,3 +658,28 @@ get.annotation.differential.scores <- function(ACTIONet.out, annotation.name, to
 	return(scores)
 }
 
+
+compute.cell.connectivity <- function(ACTIONet.out, alpha_val = 0.85) {
+    cn = coreness(ACTIONet.out$ACTIONet)
+    cn.pr = page_rank(ACTIONet.out$ACTIONet, personalized = cn, damping = alpha_val)$vector    
+	x.n = cn.pr / sd(cn.pr)
+
+	IDX = split(1:length(ACTIONet.out$unification.out$assignments.core), ACTIONet.out$unification.out$assignments.core)
+	locality = matrix(0, nrow = length(ACTIONet.out$unification.out$assignments.core), ncol = length(IDX))
+	for (i in 1:length(IDX)) {
+		idx = IDX[[i]]
+		
+		sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
+		
+		sub.cn = coreness(sub.ACTIONet)
+		pr = page_rank(sub.ACTIONet, personalized = sub.cn, damping = alpha_val)$vector
+		y.n = pr/sd(pr)
+
+		v = pmax(y.n, x.n[idx])
+		v[is.na(v)] = 0
+		
+		locality[idx, i] = v
+	}
+	connectivity = Matrix::rowSums(locality)
+	return(connectivity)
+}

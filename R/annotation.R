@@ -569,44 +569,20 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
     return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, min.enrichment = 1, post.update = T) {
-    arch.annot = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
-    
-    Enrichment = arch.annot$Enrichment    
-    Enrichment[Enrichment < min.enrichment] = 0
-    
-    ACTIONet.out = annotate.cells.from.archetype.enrichment(ACTIONet.out, Enrichment, core = T, annotation.name = annotation.name, scale = F)
-
-	# Filter unreliable labels
-	if(filter ==  T) {
-		cmd = sprintf("scores = sort(ACTIONet.out$annotations$\"%s\"$Labels.confidence, decreasing = T)", annotation.name)	
-		eval(parse(text=cmd))
-
-		nnz = round(sum(scores)^2 / sum(scores^2))
-		threshold = scores[nnz]
-
-		cmd = sprintf("filter.mask = ACTIONet.out$annotations$\"%s\"$Labels.confidence < threshold", annotation.name)	
-		eval(parse(text=cmd))
-
-		if(post.update == T) {
-			cmd = sprintf("ACTIONet.out = correct.cell.annotations(ACTIONet.out, \"%s\", \"%s\")", annotation.name, annotation.name)	
-			eval(parse(text=cmd))		
-		}
-
-
-		cmd = sprintf("ACTIONet.out$annotations$\"%s\"$Labels[filter.mask] = 0", annotation.name)	
-		eval(parse(text=cmd))
-
-		
-		cmd = sprintf("X = names(ACTIONet.out$annotations$\"%s\"$Labels)", annotation.name)	
-		eval(parse(text=cmd))
-		
-		X[filter.mask] = '?'
-		
-		cmd = sprintf("names(ACTIONet.out$annotations$\"%s\"$Labels) = X", annotation.name)	
-		eval(parse(text=cmd))
-	}
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, confidence.threshold = 3, post.update = T) {
 	
+    arch.annot.out = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
+	confidence = apply(arch.annot.out$Enrichment, 1, max)
+	arch.labels = as.character(arch.annot.out$Labels)
+	arch.labels[confidence < confidence.threshold] = "?"
+
+	cell.annotations = arch.annot.out$Labels[ACTIONet.out$unification.out$assignments.core]
+
+	ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = cell.annotations, annotation.name = annotation.name, highlight = F)
+    
+    if(post.update == T) {
+		ACTIONet.out = correct.cell.annotations(ACTIONet.out, annotation.in = annotation.name, annotation.out = annotation.name, adjust.levels = TRUE, highlight = F)
+	}
 	
     return(ACTIONet.out)
 }

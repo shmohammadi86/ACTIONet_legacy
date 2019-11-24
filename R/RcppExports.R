@@ -33,22 +33,6 @@ set_seed <- function(seed) {
     invisible(.Call(`_ACTIONet_set_seed`, seed))
 }
 
-computeFullDist <- function(H_stacked, thread_no = 8L, verbose = 1L) {
-    .Call(`_ACTIONet_computeFullDist`, H_stacked, thread_no, verbose)
-}
-
-computeNearestDist <- function(H_stacked, kNN, thread_no = 8L) {
-    .Call(`_ACTIONet_computeNearestDist`, H_stacked, kNN, thread_no)
-}
-
-smoothKNN <- function(D, thread_no = 8L) {
-    .Call(`_ACTIONet_smoothKNN`, D, thread_no)
-}
-
-computeNearestDist_edgeList <- function(H_stacked, kNN, thread_no = 8L) {
-    .Call(`_ACTIONet_computeNearestDist_edgeList`, H_stacked, kNN, thread_no)
-}
-
 buildACTIONet <- function(H_stacked, kNN = 30L, thread_no = 8L) {
     .Call(`_ACTIONet_buildACTIONet`, H_stacked, kNN, thread_no)
 }
@@ -65,71 +49,15 @@ reconstructArchetypes <- function(S, C_trace, H_trace, z_threshold = 1.0) {
     .Call(`_ACTIONet_reconstructArchetypes`, S, C_trace, H_trace, z_threshold)
 }
 
-extractArchetypeAssociatedSamples <- function(G, H_stacked, alpha = 0.85) {
-    .Call(`_ACTIONet_extractArchetypeAssociatedSamples`, G, H_stacked, alpha)
-}
-
 assessFeatureSets <- function(S, index_sets, rand_perm = 100L) {
     .Call(`_ACTIONet_assessFeatureSets`, S, index_sets, rand_perm)
-}
-
-assessFeatureSets_archs <- function(archetype_profile, index_sets, rand_perm = 100L) {
-    .Call(`_ACTIONet_assessFeatureSets_archs`, archetype_profile, index_sets, rand_perm)
-}
-
-assessFeatureSets_decoupled <- function(archetype_profile, H_stacked, index_sets, rand_perm = 100L) {
-    .Call(`_ACTIONet_assessFeatureSets_decoupled`, archetype_profile, H_stacked, index_sets, rand_perm)
-}
-
-computeAutocorrelation <- function(G, scores, rand_perm = 100L, num_shuffles = 10000L) {
-    .Call(`_ACTIONet_computeAutocorrelation`, G, scores, rand_perm, num_shuffles)
 }
 
 phenotypeEnrichment <- function(H_stacked, phenotype_associations, rand_perm_no) {
     .Call(`_ACTIONet_phenotypeEnrichment`, H_stacked, phenotype_associations, rand_perm_no)
 }
 
-MWM <- function(G) {
-    .Call(`_ACTIONet_MWM`, G)
-}
-
-batchPR <- function(G, U, alpha = 0.85, thread_no = 8L, tol = 1e-6) {
-    .Call(`_ACTIONet_batchPR`, G, U, alpha, thread_no, tol)
-}
-
-zoned_diffusion <- function(G, zones, U, alpha = 0.85, thread_no = 8L, tol = 1e-6) {
-    .Call(`_ACTIONet_zoned_diffusion`, G, zones, U, alpha, thread_no, tol)
-}
-
-sweepcut <- function(A, s) {
-    .Call(`_ACTIONet_sweepcut`, A, s)
-}
-
-mergeArchetypes <- function(C_stacked, H_stacked) {
-    .Call(`_ACTIONet_mergeArchetypes`, C_stacked, H_stacked)
-}
-
-signed_cluster <- function(A, resolution_parameter = 1.0, seed = 0L, initial_clusters_ = NULL) {
-    .Call(`_ACTIONet_signed_cluster`, A, resolution_parameter, seed, initial_clusters_)
-}
-
-unsigned_cluster <- function(A, resolution_parameter = 1.0, seed = 0L, initial_clusters_ = NULL) {
-    .Call(`_ACTIONet_unsigned_cluster`, A, resolution_parameter, seed, initial_clusters_)
-}
-
-Rank1_matching <- function(u, v, u_threshold = 0, v_threshold = 0) {
-    .Call(`_ACTIONet_Rank1_matching`, u, v, u_threshold, v_threshold)
-}
-
-constructBackbone <- function(arch_profile_reduced, weight_threshold = 0, pval_threshold = 0.05, lambda = -1, thread_no = 8L) {
-    .Call(`_ACTIONet_constructBackbone`, arch_profile_reduced, weight_threshold, pval_threshold, lambda, thread_no)
-}
-
 update_layout_2D <- function(coors, compactness_level = 50L, n_epochs = 100L, thread_no = 8L) {
     .Call(`_ACTIONet_update_layout_2D`, coors, compactness_level, n_epochs, thread_no)
-}
-
-constructKstarNN_fromDist <- function(D, L_C = 1) {
-    .Call(`_ACTIONet_constructKstarNN_fromDist`, D, L_C)
 }
 

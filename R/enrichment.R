@@ -80,7 +80,10 @@ assess.continuous.autocorrelation <- function(ACTIONet.out, variables, rand_perm
     
     nV = length(V(ACTIONet))
     G = get.adjacency(ACTIONet, attr = "weight")
-    
+
+	if( (ncol(variables) == nV) & (nrow(variables) != nV))
+		variables = t(variables)
+		
     Enrichment = computeAutocorrelation(G, as.matrix(variables), rand_perm, num_shuffles)
     
     return(Enrichment)
@@ -349,7 +352,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 }
 
 
-geneset.enrichment.gene.scores <- function(ACTIONet.out, gene.scores, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", core = T) {
+geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", core = T) {
 	DE.profile = as.matrix(gene.scores)
 	
     if (is.null(rownames(DE.profile))) {

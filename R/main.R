@@ -49,9 +49,6 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     V(ACTIONet)$z3D = coor3D[, 3]
     V(ACTIONet)$color = rgb(vis.out$colors)
     
-    cn = coreness(ACTIONet)
-    cn.pr = page_rank(ACTIONet, personalized = cn)$vector
-    V(ACTIONet)$connectivity = cn.pr
     
     arch.Lab = t(reconstruct.out$C_stacked) %*% grDevices::convertColor(color = vis.out$colors, from = "sRGB", to = "Lab")
     arch.colors = rgb(grDevices::convertColor(color = arch.Lab, from = "Lab", to = "sRGB"))
@@ -89,6 +86,11 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
 	} else {
 		cells = as.character(1:ncol(sce))
 	}
+
+	# Compute overall connectivity of nodes
+	connectivity = compute.cell.connectivity(ACTIONet.out)
+    V(ACTIONet.out$ACTIONet)$connectivity = connectivity
+
 	
     ACTIONet.out$log = list(genes = rownames(sce), cells = cells, time = Sys.time())
     

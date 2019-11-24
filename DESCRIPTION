@@ -3,7 +3,7 @@ Type: Package
 Title: Robust multi-resolution analysis of single-cell datasets
 biocViews: ArchetypalAnalysis, GeneExpression, RNASeq, SingleCell, Transcriptomics
 Version: 1.0
-Date: 2019-01-01
+Date: 2020-01-01
 Authors@R: c(
     person("Shahin", "Mohammadi", email = "shahin.mohammadi@gmail.com", 
         role = c("cre", "aut"), comment = c(ORCID = "0000-0001-8734-2326")),
@@ -14,10 +14,10 @@ Maintainer: Shahin Mohammadi <mohammadi@broadinstitute.org>
 Description: 
 License: GPL (>= 2)
 URL: http://compbio.mit.edu/ACTIONet/
-Depends: Rcpp, RcppArmadillo, Matrix, igraph, SingleCellExperiment, scran, scater
-Imports: Matrix, igraph, SingleCellExperiment, scran, ComplexHeatmap,ggpubr,ggplot2,ggrepel,plotly,threejs,viridis,colorspace,scales,colorspace,grDevices,RColorBrewer, stringr, R.utils
+Depends: Rcpp, RcppArmadillo, NetLibR, Matrix, igraph, SingleCellExperiment, wordcloud
+Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, scran, wordcloud, ComplexHeatmap,ggpubr,ggplot2,ggrepel,plotly,threejs,viridis,colorspace,scales,colorspace,grDevices,RColorBrewer, stringr, R.utils
 LinkingTo: Rcpp,RcppArmadillo
-Remotes: immunogenomics/harmony,mbojan/alluvial
+Remotes: immunogenomics/harmony,mbojan/alluvial,shmohammadii86/NetLibR
 Encoding: UTF-8
 RoxygenNote: 6.1.1
 VignetteBuilder: knitr

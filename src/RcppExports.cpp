@@ -112,57 +112,6 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
-// computeFullDist
-mat computeFullDist(mat& H_stacked, int thread_no, int verbose);
-RcppExport SEXP _ACTIONet_computeFullDist(SEXP H_stackedSEXP, SEXP thread_noSEXP, SEXP verboseSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeFullDist(H_stacked, thread_no, verbose));
-    return rcpp_result_gen;
-END_RCPP
-}
-// computeNearestDist
-sp_mat computeNearestDist(mat& H_stacked, double kNN, int thread_no);
-RcppExport SEXP _ACTIONet_computeNearestDist(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< double >::type kNN(kNNSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeNearestDist(H_stacked, kNN, thread_no));
-    return rcpp_result_gen;
-END_RCPP
-}
-// smoothKNN
-sp_mat smoothKNN(sp_mat D, int thread_no);
-RcppExport SEXP _ACTIONet_smoothKNN(SEXP DSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat >::type D(DSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(smoothKNN(D, thread_no));
-    return rcpp_result_gen;
-END_RCPP
-}
-// computeNearestDist_edgeList
-List computeNearestDist_edgeList(mat& H_stacked, double kNN, int thread_no);
-RcppExport SEXP _ACTIONet_computeNearestDist_edgeList(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< double >::type kNN(kNNSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeNearestDist_edgeList(H_stacked, kNN, thread_no));
-    return rcpp_result_gen;
-END_RCPP
-}
 // buildACTIONet
 List buildACTIONet(mat& H_stacked, int kNN, int thread_no);
 RcppExport SEXP _ACTIONet_buildACTIONet(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
@@ -221,19 +170,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// extractArchetypeAssociatedSamples
-mat extractArchetypeAssociatedSamples(sp_mat& G, mat& H_stacked, double alpha);
-RcppExport SEXP _ACTIONet_extractArchetypeAssociatedSamples(SEXP GSEXP, SEXP H_stackedSEXP, SEXP alphaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    rcpp_result_gen = Rcpp::wrap(extractArchetypeAssociatedSamples(G, H_stacked, alpha));
-    return rcpp_result_gen;
-END_RCPP
-}
 // assessFeatureSets
 mat assessFeatureSets(sp_mat& S, List index_sets, int rand_perm);
 RcppExport SEXP _ACTIONet_assessFeatureSets(SEXP SSEXP, SEXP index_setsSEXP, SEXP rand_permSEXP) {
@@ -247,47 +183,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// assessFeatureSets_archs
-mat assessFeatureSets_archs(mat& archetype_profile, List index_sets, int rand_perm);
-RcppExport SEXP _ACTIONet_assessFeatureSets_archs(SEXP archetype_profileSEXP, SEXP index_setsSEXP, SEXP rand_permSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type archetype_profile(archetype_profileSEXP);
-    Rcpp::traits::input_parameter< List >::type index_sets(index_setsSEXP);
-    Rcpp::traits::input_parameter< int >::type rand_perm(rand_permSEXP);
-    rcpp_result_gen = Rcpp::wrap(assessFeatureSets_archs(archetype_profile, index_sets, rand_perm));
-    return rcpp_result_gen;
-END_RCPP
-}
-// assessFeatureSets_decoupled
-mat assessFeatureSets_decoupled(mat archetype_profile, mat H_stacked, List index_sets, int rand_perm);
-RcppExport SEXP _ACTIONet_assessFeatureSets_decoupled(SEXP archetype_profileSEXP, SEXP H_stackedSEXP, SEXP index_setsSEXP, SEXP rand_permSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat >::type archetype_profile(archetype_profileSEXP);
-    Rcpp::traits::input_parameter< mat >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< List >::type index_sets(index_setsSEXP);
-    Rcpp::traits::input_parameter< int >::type rand_perm(rand_permSEXP);
-    rcpp_result_gen = Rcpp::wrap(assessFeatureSets_decoupled(archetype_profile, H_stacked, index_sets, rand_perm));
-    return rcpp_result_gen;
-END_RCPP
-}
-// computeAutocorrelation
-List computeAutocorrelation(sp_mat& G, mat& scores, int rand_perm, int num_shuffles);
-RcppExport SEXP _ACTIONet_computeAutocorrelation(SEXP GSEXP, SEXP scoresSEXP, SEXP rand_permSEXP, SEXP num_shufflesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< mat& >::type scores(scoresSEXP);
-    Rcpp::traits::input_parameter< int >::type rand_perm(rand_permSEXP);
-    Rcpp::traits::input_parameter< int >::type num_shuffles(num_shufflesSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeAutocorrelation(G, scores, rand_perm, num_shuffles));
-    return rcpp_result_gen;
-END_RCPP
-}
 // phenotypeEnrichment
 mat phenotypeEnrichment(mat& H_stacked, mat& phenotype_associations, int rand_perm_no);
 RcppExport SEXP _ACTIONet_phenotypeEnrichment(SEXP H_stackedSEXP, SEXP phenotype_associationsSEXP, SEXP rand_perm_noSEXP) {
@@ -298,129 +193,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< mat& >::type phenotype_associations(phenotype_associationsSEXP);
     Rcpp::traits::input_parameter< int >::type rand_perm_no(rand_perm_noSEXP);
     rcpp_result_gen = Rcpp::wrap(phenotypeEnrichment(H_stacked, phenotype_associations, rand_perm_no));
-    return rcpp_result_gen;
-END_RCPP
-}
-// MWM
-mat MWM(mat& G);
-RcppExport SEXP _ACTIONet_MWM(SEXP GSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type G(GSEXP);
-    rcpp_result_gen = Rcpp::wrap(MWM(G));
-    return rcpp_result_gen;
-END_RCPP
-}
-// batchPR
-mat batchPR(sp_mat& G, mat& U, double alpha, int thread_no, double tol);
-RcppExport SEXP _ACTIONet_batchPR(SEXP GSEXP, SEXP USEXP, SEXP alphaSEXP, SEXP thread_noSEXP, SEXP tolSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< mat& >::type U(USEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(batchPR(G, U, alpha, thread_no, tol));
-    return rcpp_result_gen;
-END_RCPP
-}
-// zoned_diffusion
-mat zoned_diffusion(sp_mat& G, uvec& zones, mat& U, double alpha, int thread_no, double tol);
-RcppExport SEXP _ACTIONet_zoned_diffusion(SEXP GSEXP, SEXP zonesSEXP, SEXP USEXP, SEXP alphaSEXP, SEXP thread_noSEXP, SEXP tolSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< uvec& >::type zones(zonesSEXP);
-    Rcpp::traits::input_parameter< mat& >::type U(USEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(zoned_diffusion(G, zones, U, alpha, thread_no, tol));
-    return rcpp_result_gen;
-END_RCPP
-}
-// sweepcut
-vec sweepcut(sp_mat& A, vec s);
-RcppExport SEXP _ACTIONet_sweepcut(SEXP ASEXP, SEXP sSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat& >::type A(ASEXP);
-    Rcpp::traits::input_parameter< vec >::type s(sSEXP);
-    rcpp_result_gen = Rcpp::wrap(sweepcut(A, s));
-    return rcpp_result_gen;
-END_RCPP
-}
-// mergeArchetypes
-sp_mat mergeArchetypes(mat C_stacked, mat H_stacked);
-RcppExport SEXP _ACTIONet_mergeArchetypes(SEXP C_stackedSEXP, SEXP H_stackedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat >::type C_stacked(C_stackedSEXP);
-    Rcpp::traits::input_parameter< mat >::type H_stacked(H_stackedSEXP);
-    rcpp_result_gen = Rcpp::wrap(mergeArchetypes(C_stacked, H_stacked));
-    return rcpp_result_gen;
-END_RCPP
-}
-// signed_cluster
-vec signed_cluster(sp_mat A, double resolution_parameter, int seed, Nullable<IntegerVector> initial_clusters_);
-RcppExport SEXP _ACTIONet_signed_cluster(SEXP ASEXP, SEXP resolution_parameterSEXP, SEXP seedSEXP, SEXP initial_clusters_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat >::type A(ASEXP);
-    Rcpp::traits::input_parameter< double >::type resolution_parameter(resolution_parameterSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type initial_clusters_(initial_clusters_SEXP);
-    rcpp_result_gen = Rcpp::wrap(signed_cluster(A, resolution_parameter, seed, initial_clusters_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// unsigned_cluster
-vec unsigned_cluster(sp_mat A, double resolution_parameter, int seed, Nullable<IntegerVector> initial_clusters_);
-RcppExport SEXP _ACTIONet_unsigned_cluster(SEXP ASEXP, SEXP resolution_parameterSEXP, SEXP seedSEXP, SEXP initial_clusters_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< sp_mat >::type A(ASEXP);
-    Rcpp::traits::input_parameter< double >::type resolution_parameter(resolution_parameterSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type initial_clusters_(initial_clusters_SEXP);
-    rcpp_result_gen = Rcpp::wrap(unsigned_cluster(A, resolution_parameter, seed, initial_clusters_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Rank1_matching
-umat Rank1_matching(vec u, vec v, double u_threshold, double v_threshold);
-RcppExport SEXP _ACTIONet_Rank1_matching(SEXP uSEXP, SEXP vSEXP, SEXP u_thresholdSEXP, SEXP v_thresholdSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< vec >::type u(uSEXP);
-    Rcpp::traits::input_parameter< vec >::type v(vSEXP);
-    Rcpp::traits::input_parameter< double >::type u_threshold(u_thresholdSEXP);
-    Rcpp::traits::input_parameter< double >::type v_threshold(v_thresholdSEXP);
-    rcpp_result_gen = Rcpp::wrap(Rank1_matching(u, v, u_threshold, v_threshold));
-    return rcpp_result_gen;
-END_RCPP
-}
-// constructBackbone
-List constructBackbone(mat arch_profile_reduced, double weight_threshold, double pval_threshold, double lambda, int thread_no);
-RcppExport SEXP _ACTIONet_constructBackbone(SEXP arch_profile_reducedSEXP, SEXP weight_thresholdSEXP, SEXP pval_thresholdSEXP, SEXP lambdaSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat >::type arch_profile_reduced(arch_profile_reducedSEXP);
-    Rcpp::traits::input_parameter< double >::type weight_threshold(weight_thresholdSEXP);
-    Rcpp::traits::input_parameter< double >::type pval_threshold(pval_thresholdSEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(constructBackbone(arch_profile_reduced, weight_threshold, pval_threshold, lambda, thread_no));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -438,18 +210,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// constructKstarNN_fromDist
-mat constructKstarNN_fromDist(mat& D, double L_C);
-RcppExport SEXP _ACTIONet_constructKstarNN_fromDist(SEXP DSEXP, SEXP L_CSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type D(DSEXP);
-    Rcpp::traits::input_parameter< double >::type L_C(L_CSEXP);
-    rcpp_result_gen = Rcpp::wrap(constructKstarNN_fromDist(D, L_C));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_reduceGeneExpression", (DL_FUNC) &_ACTIONet_reduceGeneExpression, 4},
@@ -460,31 +220,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_runACTION_withBatch", (DL_FUNC) &_ACTIONet_runACTION_withBatch, 7},
     {"_ACTIONet_frSVD", (DL_FUNC) &_ACTIONet_frSVD, 4},
     {"_ACTIONet_set_seed", (DL_FUNC) &_ACTIONet_set_seed, 1},
-    {"_ACTIONet_computeFullDist", (DL_FUNC) &_ACTIONet_computeFullDist, 3},
-    {"_ACTIONet_computeNearestDist", (DL_FUNC) &_ACTIONet_computeNearestDist, 3},
-    {"_ACTIONet_smoothKNN", (DL_FUNC) &_ACTIONet_smoothKNN, 2},
-    {"_ACTIONet_computeNearestDist_edgeList", (DL_FUNC) &_ACTIONet_computeNearestDist_edgeList, 3},
     {"_ACTIONet_buildACTIONet", (DL_FUNC) &_ACTIONet_buildACTIONet, 3},
     {"_ACTIONet_buildAdaptiveACTIONet", (DL_FUNC) &_ACTIONet_buildAdaptiveACTIONet, 6},
     {"_ACTIONet_layoutACTIONet", (DL_FUNC) &_ACTIONet_layoutACTIONet, 5},
     {"_ACTIONet_reconstructArchetypes", (DL_FUNC) &_ACTIONet_reconstructArchetypes, 4},
-    {"_ACTIONet_extractArchetypeAssociatedSamples", (DL_FUNC) &_ACTIONet_extractArchetypeAssociatedSamples, 3},
     {"_ACTIONet_assessFeatureSets", (DL_FUNC) &_ACTIONet_assessFeatureSets, 3},
-    {"_ACTIONet_assessFeatureSets_archs", (DL_FUNC) &_ACTIONet_assessFeatureSets_archs, 3},
-    {"_ACTIONet_assessFeatureSets_decoupled", (DL_FUNC) &_ACTIONet_assessFeatureSets_decoupled, 4},
-    {"_ACTIONet_computeAutocorrelation", (DL_FUNC) &_ACTIONet_computeAutocorrelation, 4},
     {"_ACTIONet_phenotypeEnrichment", (DL_FUNC) &_ACTIONet_phenotypeEnrichment, 3},
-    {"_ACTIONet_MWM", (DL_FUNC) &_ACTIONet_MWM, 1},
-    {"_ACTIONet_batchPR", (DL_FUNC) &_ACTIONet_batchPR, 5},
-    {"_ACTIONet_zoned_diffusion", (DL_FUNC) &_ACTIONet_zoned_diffusion, 6},
-    {"_ACTIONet_sweepcut", (DL_FUNC) &_ACTIONet_sweepcut, 2},
-    {"_ACTIONet_mergeArchetypes", (DL_FUNC) &_ACTIONet_mergeArchetypes, 2},
-    {"_ACTIONet_signed_cluster", (DL_FUNC) &_ACTIONet_signed_cluster, 4},
-    {"_ACTIONet_unsigned_cluster", (DL_FUNC) &_ACTIONet_unsigned_cluster, 4},
-    {"_ACTIONet_Rank1_matching", (DL_FUNC) &_ACTIONet_Rank1_matching, 4},
-    {"_ACTIONet_constructBackbone", (DL_FUNC) &_ACTIONet_constructBackbone, 5},
     {"_ACTIONet_update_layout_2D", (DL_FUNC) &_ACTIONet_update_layout_2D, 4},
-    {"_ACTIONet_constructKstarNN_fromDist", (DL_FUNC) &_ACTIONet_constructKstarNN_fromDist, 2},
     {NULL, NULL, 0}
 };
 

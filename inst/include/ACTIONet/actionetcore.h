@@ -91,15 +91,9 @@ namespace ACTIONetcore {
 		mat backbone; // archetype x archetype graph (after potentially removing hub archetypes).
 	};	
 
-	mat constructKstarNN_fromDist(mat &D, double L_C);
-
+	mat computeFullDist(mat &H_stacked, int thread_no, int verbose);
 	field<sp_mat> buildACTIONet(mat &H_stacked, int kNN, int thread_no);
 	field<sp_mat> buildAdaptiveACTIONet(mat &H_stacked, double LC, double epsilon, int thread_no, bool auto_adjust_LC, int sym_method);
-
-	mat computeFullDist(mat &H_stacked, int thread_no, int verbose);
-	sp_mat computeNearestDist(mat &H_stacked, int kNN, int thread_no);
-	field<mat> computeNearestDist_edgeList(mat &H_stacked, int kNN, int thread_no);
-	sp_mat smoothKNN(sp_mat D, int thread_no);
 
 	field<mat> layoutACTIONet(sp_mat &G, mat &S_r, int compactness_level, unsigned int n_epochs, int thread_no);	
 	mat update_layout_2D(mat &coors, int compactness_level, unsigned int n_epochs, int thread_no);
@@ -107,33 +101,8 @@ namespace ACTIONetcore {
 	multilevel_archetypal_decomposition reconstructArchetypes(sp_mat S, vector<mat> C_trace, vector<mat> H_trace, double z_score);
 
 	mat assessFeatureSets(sp_mat &S, field<uvec> feature_sets, int rand_perm);
-	mat assessFeatureSets_decoupled(mat &archetype_profile, mat &H_stacked, field<uvec> feature_sets, int rand_perm);	
-	mat assessFeatureSets_archs(mat &archs, field<uvec> feature_sets, int rand_perm_no);	
-
-	field<vec> computeAutocorrelation (sp_mat &G, mat &scores, int rand_perm, int num_shuffles);
-
-	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);
-		
-	mat MWM(mat &G);	
 	
-	vec extractArchetypeAssociatedSamples(sp_mat &G, vec h, double alpha);
-	mat extractArchetypeAssociatedSamples(sp_mat &G, mat H_stacked, double alpha);
-	mat batchPR(sp_mat &G, mat &U, double alpha, int thread_no, double tol);
-	mat batch_zoned_diffusion(sp_mat &G, uvec &zones, mat &U, double alpha, int thread_no, double tol);
-	
-	mat smoothArchetypes(mat archetype_profile, mat backbone, double alpha_val, double beta_val);	
-	sp_mat mergeArchetypes(mat C_stacked, mat H_stacked);
-	
-	vec sweepcut(sp_mat &A, vec s);
-
-	vec unsigned_cluster(sp_mat A, double resolution_parameter, int seed, uvec initial_clusters);
-	vec signed_cluster(sp_mat A, double resolution_parameter, int seed, uvec initial_clusters);
-
-	umat Rank1_matching(vec u, vec v, double u_threshold, double v_threshold);
-
-
-	field<mat> FastGGM(mat x, double lambda, int thread_no);
-	arma::sp_mat make_spanner(arma::sp_mat &G_adj, int k);
+	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);		
 }
 
 

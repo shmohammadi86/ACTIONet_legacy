@@ -12,6 +12,65 @@ mat zscore(mat A) {
 }
 
 namespace ACTIONetcore {	
+	sp_mat smoothKNN(sp_mat D, int thread_no = -1) {		
+		double epsilon = 1e-6;
+
+		int nV = D.n_rows;
+		sp_mat G = D;			
+		
+		#pragma omp parallel for num_threads(thread_no) 			
+		for(int i = 0; i < nV; i++) {
+			sp_mat v = D.col(i);
+			if(v.n_nonzero == 0)
+				continue;
+			
+			vec vals = nonzeros(v);	
+			if(vals.n_elem == 0)
+				continue;
+				
+			double rho = min(vals);
+			vec negated_shifted_vals = -(vals - rho); 
+			double target = log2(vals.n_elem);
+			
+			// Binary search to find optimal sigma
+			double sigma = 1.0;
+			double lo = 0.0;
+			double hi = DBL_MAX;
+			
+			int j;
+			for(j = 0; j < 64; j ++) {
+				double obj = sum(exp(negated_shifted_vals / sigma));
+
+				if (abs(obj - target) < epsilon) {
+					break;
+				}
+
+				if (target < obj) {
+					hi = sigma;
+					sigma = 0.5 * (lo + hi);
+				}
+				else {
+					lo = sigma;
+					if (hi == DBL_MAX) {
+						sigma *= 2;
+					}
+					else {
+						sigma = 0.5 * (lo + hi);
+					}
+				}				
+			}
+			
+			double obj = sum(exp(negated_shifted_vals / sigma));			
+			//printf("%d- rho = %.3f, degree = %d, log2(k) = %.2e, sigma = %.2e, residual = %.2e, iters = %d\n", i, rho, vals.n_elem, target, sigma, abs(obj - target), j);
+			
+			for(sp_mat::col_iterator it = G.begin_col(i); it != G.end_col(i); ++it) {
+				*it = max(1e-16, exp( -max(0.0, (*it) - rho ) / sigma ));
+			}			
+		}
+		return(G);
+	}
+	
+	
 	field<mat> layoutACTIONet(sp_mat &G,
 		mat &S_r,
 		int compactness_level = 50,

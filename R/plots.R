@@ -21,8 +21,8 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
-	node.size = 1, CPal = ACTIONet.color.bank, add.text = FALSE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = FALSE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
+	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
     
     node.size = node.size * 0.5
     
@@ -106,6 +106,8 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     
     
     if ( add.text == T & (!is.null(Annot)) ) {
+		par(xpd = T, mar = par()$mar * c(1.1,1.1,1.1,1.1))
+		
     	require(wordcloud)
         centroids = t(sapply(Annot, function(l) {
             idx = which(names(labels) == l)
@@ -137,9 +139,18 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     }
     
     if ( (suppress.legend == FALSE) & !is.null(Annot) ) {
-		#par(xpd = T, mar = par()$mar * c(1,1,1,1.1))
-        #legend(legend.pos, legend = Annot, fill = Pal, cex = 0.5, bty = "n", inset=c(-0.1,0))
-        legend(legend.pos, legend = Annot, fill = Pal, cex = 0.5, bty = "n")
+# 		xmin <- par("usr")[1]
+# 		xmax <- par("usr")[2]
+# 		ymin <- par("usr")[3]
+# 		ymax <- par("usr")[4]
+# 
+# 		lgd <- legend(x = mean(c(xmin,xmax)), y =  mean(c(ymin,ymax)), legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = F)
+# 
+#     	par(xpd = T, mai = c(0, 0, 0, lgd$rect$w))
+# 
+# 		legend(x = xmax, y = ymin+lgd$rect$h, legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = T)
+
+		legend("bottom", legend = Annot, fill = Pal, cex = 0.5, plot = T)
     }    
 }
 
@@ -326,7 +337,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
     nV = length(V(ACTIONet))
-    node.size = node.size * 5
+    node.size = node.size * 3
     
 	labels = preprocess.labels(ACTIONet.out, labels)
 	if(is.null(labels)) {
@@ -417,18 +428,23 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
     node.data$size = node.size
     
     axis <- list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE)
-    
+
     if(threeD == TRUE) {
 		if(is.null(Annot)) {
 		    node.data$vCol = vCol
 			node.data$vCol.border = vCol.border
 			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d", showlegend = FALSE)		
-			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis)
+			p <- plotly::layout(network, title = title, shapes = edge_shapes, scene = list(xaxis=axis,yaxis=axis,zaxis=axis))
+			
 		} else {
-			border.Pal = colorspace::darken(Pal, 0.5)
+			# border.Pal = colorspace::darken(Pal, 0.5)
+			# names(border.Pal) = names(Pal)
+			node.data$vCol.border = vCol.border
+
 		    node.data$type = factor(names(labels), levels = Annot)
-			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d")		
-			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
+		    
+			network <- plot_ly(node.data, x = ~x3D, y = ~y3D, z = ~z3D, opacity = 1, color = ~type, colors = Pal, marker = list(size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", hoverinfo = "text", type = "scatter3d")		
+			p <- plotly::layout(network, title = title, shapes = edge_shapes, scene = list(xaxis=axis,yaxis=axis,zaxis=axis), showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
 		}		
 	} else {				
 		if(is.null(Annot)) {
@@ -437,9 +453,13 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
 			network <- plot_ly(node.data, x = ~x, y = ~y, marker = list(color = ~vCol, size = ~size, opacity = 1, alpha = 1, line = list(width = 0.1 * node.size, alpha = 0.5, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text", showlegend = FALSE)
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis)
 		} else {
-			border.Pal = colorspace::darken(Pal, 0.5)
+			# border.Pal = colorspace::darken(Pal, 0.5)
+			# names(border.Pal) = names(Pal)
+			node.data$vCol.border = vCol.border
+
 		    node.data$type = factor(names(labels), levels = Annot)
-			network <- plot_ly(node.data, x = ~x, y = ~y, color = ~type, colors = Pal, marker = list(size = ~size, line = list(width = 0.1 * node.size, color = ~type, colors = border.Pal)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
+		    
+			network <- plot_ly(node.data, x = ~x, y = ~y, color = ~type, colors = Pal, marker = list(size = ~size, line = list(width = 0.1 * node.size, color = ~vCol.border)), text = node.annotations, mode = "markers", type = "scatter", hoverinfo = "text")
 			p <- plotly::layout(network, title = title, shapes = edge_shapes, xaxis = axis, yaxis = axis, showlegend = TRUE, legend = list(marker = list(marker.size = 10)))
 		}
 	}
@@ -448,124 +468,54 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
     
 }
 
-plot.marker.boxplot <- function(ACTIONet.out, sce, marker.genes, Labels, node.size = 3, CPal = ACTIONet.color.bank, export_path = NA, 
-    thread_no = 8, prune = FALSE, scale.factor = 2, p.threshold = NA) {
+plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, imputation = F, alpha_val = 0.85, node.size = 3, CPal = ACTIONet.color.bank) {
     require(igraph)
     require(ACTIONet)
     require(ggpubr)
+	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
+	if(length(cl.idx) == 0) {
+		R.utils::printf('Error in plot.annotations.individual.gene: annotation.name "%s" not found\n', annotation.name)
+		return()
+	}	
+
+	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels
+	Labels = names(clusters)
+	Annot = sort(unique(Labels))
+	Annot = Annot[order(clusters[match(Annot, Labels)], decreasing = F)]
+	Labels = factor(Labels, levels = Annot)
+	
+	if(length(CPal) > 1) {
+        Pal = CPal[1:length(Annot)]			
+	} else {
+        Pal = ggpubr::get_palette(CPal, length(Annot))
+	}
+    names(Pal) = Annot
+
+	if( !(gene.name %in% rownames(sce)) ) {
+		R.utils::printf("Gene %s not found\n", gene.name)
+		return()
+	}
+	
+	x = sce@assays[["logcounts"]][gene.name, ]
+	is(sum(x) == 0) {
+		print("Gene is not expressed")
+		return()
+	}
+	
+	if(imputation == T) {
+		x = x / sum(x)
+		x = igraph::page.rank(ACTIONet.out$ACTIONet, personalized = x, damping = alpha_val)$vector
+	}
+	x = x / mean(x)
+	
+	require(ggpubr)
+	require(ggplot2)
+	df = data.frame(Annotation = Labels, Expression = x)	
+    gp = ggboxplot(df, x = "Annotation", y = "Expression", fill = "Annotation", palette = Pal) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
     
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels, levels = sort(unique(Labels)))
-    }
-    
-    if (!sum(sapply(marker.genes, length) != 1) & is.null(names(marker.genes))) {
-        names(marker.genes) = marker.genes
-    }
-    
-    gg = unique(unlist(marker.genes))
-    all.marker.genes = sort(intersect(gg, rownames(sce)))
-    
-    imputed.markers = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = prune)
-    
-    if (!is.na(p.threshold)) {
-        wilc.out = presto::wilcoxauc(t(imputed.markers), Labels)
-        
-        sig.mask = wilc.out$logFC > 0 & wilc.out$auc > 0.5 & wilc.out$padj < p.threshold
-        sig.genes = sort(unique(wilc.out$feature[sig.mask]))
-        
-        
-        updated.names = sapply(colnames(imputed.markers), function(gene) ifelse(gene %in% sig.genes, sprintf("%s*", gene), gene))
-        
-        colnames(imputed.markers) = updated.names
-    }
-    
-    imputed.markers.df = as.data.frame(log2(imputed.markers * nrow(imputed.markers)))
-    imputed.markers.df$Celltype = Labels
-    
-    
-    
-    
-    if (1 < length(CPal)) {
-        Pal = CPal[1:length(levels(Labels))]
-    } else {
-        Pal = ggpubr::get_palette(CPal, length(levels(Labels)))
-    }
-    names(Pal) = levels(Labels)
-    
-    sapply(colnames(imputed.markers), function(gene.name) {
-        gp = ggboxplot(imputed.markers.df, x = "Celltype", y = gene.name, fill = "Celltype", palette = Pal) + theme(axis.text.x = element_text(angle = 90, 
-            hjust = 1))
-        print(gp)
-        
-        if (!is.na(export_path)) {
-            fname = sprintf("%s/%s.pdf", export_path, gene.name)
-            pdf(fname)
-            print(gp)
-            dev.off()
-        }
-        
-    })
-    
+    print(gp)
 }
 
-
-plot.marker.dotplot <- function(ACTIONet.out, sce, marker.genes, Labels, CPal = "YlOrRd", thread_no = 8, prune = FALSE, font.size = 1, 
-    p.threshold = NA, keep.order = FALSE, row.rescale = FALSE) {
-    require(ACTIONet)
-    library(corrplot)
-    library(seriation)
-    
-    if (!is.factor(Labels)) {
-        Labels = factor(Labels, levels = sort(unique(Labels)))
-    }
-    
-    if (!sum(sapply(marker.genes, length) != 1) & is.null(names(marker.genes))) {
-        names(marker.genes) = marker.genes
-    }
-    
-    gg = unique(unlist(marker.genes))
-    all.marker.genes = sort(intersect(gg, rownames(sce)))
-    
-    imputed.markers = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = prune)
-    
-    
-    X = apply(imputed.markers, 2, function(x) return((x - min(x))/(max(x) - min(x))))
-    
-    IDX = split(1:nrow(imputed.markers), Labels)
-    mean.expr = sapply(IDX, function(idx) as.numeric(Matrix::colMeans(X[idx, ])))
-    rownames(mean.expr) = colnames(imputed.markers)
-    
-    
-    if (keep.order == TRUE) {
-        perm = order(match(rownames(mean.expr), marker.genes))
-    } else {
-        set.seed(0)
-        perm = seriation::get_order(seriate(mean.expr, "BEA_TSP"))
-    }
-    
-    
-    if (!is.na(p.threshold)) {
-        wilc.out = presto::wilcoxauc(t(X), Labels)
-        
-        sig.mask = wilc.out$logFC > 0 & wilc.out$auc > 0.5 & wilc.out$padj < p.threshold
-        sig.genes = sort(unique(wilc.out$feature[sig.mask]))
-        
-        
-        updated.names = sapply(rownames(mean.expr), function(gene) ifelse(gene %in% sig.genes, sprintf("%s*", gene), gene))
-        
-        rownames(mean.expr) = updated.names
-    }
-    
-    
-    Pal = ggpubr::get_palette(CPal, 11)
-    
-    if (row.rescale == TRUE) {
-        X = t(scale(t(mean.expr[perm, ])))
-    } else {
-        X = mean.expr[perm, ]
-    }
-    corrplot(X, is.corr = FALSE, method = "circle", tl.col = "black", cl.pos = "n", col = Pal, tl.cex = font.size, cl.cex = font.size)
-}
 
 plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE) {
 
@@ -619,7 +569,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
 	
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = ACTIONet.color.bank1,  alpha_val = 0.9, export_path = NA, prune = FALSE) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0.9, export_path = NA, prune = FALSE) {
     require(igraph)
     
     
@@ -649,27 +599,233 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
     })
 }
 
-plotOrdered.Heatmap <- function(W, row_title = "Cell states", col_title = "Annotations", measure_name = "Enrichment", scale = T) {
+#  [1] "ARSA"          "BBURCG"        "BBWRCG"        "GW"            "GW_average"    "GW_complete"   "GW_single"    
+#  [8] "GW_ward"       "HC"            "HC_average"    "HC_complete"   "HC_single"     "HC_ward"       "Identity"     
+# [15] "MDS"           "MDS_angle"     "MDS_metric"    "MDS_nonmetric" "OLO"           "OLO_average"   "OLO_complete" 
+# [22] "OLO_single"    "OLO_ward"      "QAP_2SUM"      "QAP_BAR"       "QAP_Inertia"   "QAP_LS"        "R2E"          
+# [29] "Random"        "SA"            "Spectral"      "Spectral_norm" "SPIN_NH"       "SPIN_STS"      "TSP"          
+# [36] "VAT"     
+plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = "OLO_complete", scale.rows = T, shared.columns = F) {
+	require(ComplexHeatmap)
+	require(seriation)
+	require(RColorBrewer)
 	
-	if(scale == T) {
-		W = t(scale(t(W)))
+	if(is.null(names(Enrichment.list))) {
+		names(Enrichment.list) = 1:length(Enrichment.list)
 	}
 	
-	require(ComplexHeatmap)
-	require(RColorBrewer)
-	require(seriation)
-	CC = cor(t(W))
+	set.seed(0)
+	CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(Matrix::t(E))))) / length(Enrichment.list)
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
-	row.perm = get_order(seriate(D, method = "OLO"))
+	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	if(shared.columns == T) {
+		set.seed(0)
+		CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(E)))) / length(Enrichment.list)
+		CC[is.na(CC)] = 0
+		D = as.dist(1-CC)
+		col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+		col.perms = lapply(1:length(Enrichment.list), function(i) return(col.perm))
+	} else {
+		col.perms = lapply(Enrichment.list, function(E) {
+			set.seed(0)
+			CC = cor(as.matrix(E))
+			CC[is.na(CC)] = 0		
+			D = as.dist(1-CC)
+			col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+			return(col.perm)
+		})
+	}
+	
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+	
+	
+	
+	
+	ht_list = NULL  ## Heatmap(...) + NULL gives you a HeatmapList object
+	for(i in 1:length(Enrichment.list)) {
+		Enrichment = Enrichment.list[[i]]
+		if(scale.rows == T) {
+			Enrichment = Matrix::t(scale(Matrix::t(Enrichment)))
+		}
+	    ht_list = ht_list + Heatmap(Enrichment[row.perm, col.perms[[i]]], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))
+	}
+	
+	draw(ht_list)
+}
+
+plot.annotated.heatmap <-function(W, row.annotation, column.annotation, plot_title = NA, row_title = NA, colnames_title = NA, CPal = "d3") {
+  modules = V(W)$module
+
+  Annot = sort(unique(modules))
+	modCelltype.Pal = ggpubr::get_palette("d3", length(Annot))
+  names(modCelltype.Pal) = Annot
+    
+  Annot = sort(unique(rownames(W)))
+	if(1 < length(CPal)) {
+		rowCelltype.Pal = CPal[1:length(Annot)]
+	} else {
+		rowCelltype.Pal = ggpubr::get_palette(CPal, length(Annot))
+	}
+	names(rowCelltype.Pal) = Annot
+  
+  ha_rows = HeatmapAnnotation(df = list(Celltype = rownames(W), Module = modules), col = list(Celltype = rowCelltype.Pal, Module = modCelltype.Pal), annotation_legend_param = list(Celltype=list(title_gp = gpar(fontsize = 8), labels_gp = gpar(fontsize = 5)), Module=list(title_gp = gpar(fontsize = 8), labels_gp = gpar(fontsize = 5))), which = "row")
 
 
-	CC = cor(W)
+  
+  Annot = sort(unique(colnames(W)))
+	if(1 < length(CPal)) {
+		colCelltype.Pal = CPal[1:length(Annot)]
+	} else {
+		colCelltype.Pal = ggpubr::get_palette(CPal, length(Annot))
+	}
+	names(colCelltype.Pal) = Annot
+  
+  ha_cols = HeatmapAnnotation(df = list(Celltype = colnames(W), Module = modules), col = list(Celltype = colCelltype.Pal, Module = modCelltype.Pal), annotation_legend_param = list(Celltype=list(title_gp = gpar(fontsize = 8), labels_gp = gpar(fontsize = 5)), Module=list(title_gp = gpar(fontsize = 8), labels_gp = gpar(fontsize = 5))), which = "column")  
+  
+
+  gradPal = grDevices::colorRampPalette(RColorBrewer::brewer.pal(n = 11, name = "YlOrRd"))(100)
+
+  Heatmap(W, col = gradPal, row_names_gp = gpar(fontsize = 0), column_names_gp = gpar(fontsize = 0), left_annotation = ha_rows, top_annotation = ha_cols, name = "Correlation", row_title = ds1.name, column_title = ds1.name, cluster_rows = FALSE, cluster_columns = FALSE)
+}
+
+
+plot.annotations.selected.genes <- function(ACTIONet.out, annotation.name, genes, type = "heatmap", seriation.method = "OLO") {
+	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
+	if(length(cl.idx) == 0) {
+		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" not found\n', annotation.name)
+		return()
+	}		
+    if (is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile)) {
+		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" does not DE.profile. Please run compute.annotations.feature.specificity() first.\n', annotation.name)
+		return()
+    }
+    X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+ 
+	genes = intersect(rownames(X), genes)
+
+	X.sub = X[genes, ]
+	
+	set.seed(0)
+	CC = cor(as.matrix(Matrix::t(X.sub)))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
-	col.perm = get_order(seriate(D, method = "OLO"))
+	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	set.seed(0)
+	CC = cor(as.matrix(X.sub))
+	CC[is.na(CC)] = 0
+	D = as.dist(1-CC)
+	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+	
+	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
 
-	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 11, name = "RdYlBu")))(100)
+	if(type == "corrplot") {
+		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
+	} else if(type == "heatmap") {
+		Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
+	}	
+		
+}
 
-	Heatmap(W[row.perm, col.perm], name = measure_name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row_title, column_title = col_title, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_title_gp = gpar(fontsize = 10, fontface="bold"))
+plot.annotations.top.genes <- function(ACTIONet.out, annotation.name, gene.counts, type = "heatmap", seriation.method = "OLO") {
+	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
+	if(length(cl.idx) == 0) {
+		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" not found\n', annotation.name)
+		return()
+	}		
+    if (is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile)) {
+		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" does not DE.profile. Please run compute.annotations.feature.specificity() first.\n', annotation.name)
+		return()
+    }
+    X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+ 
+	CC = cor(X)
+	CC[is.na(CC)] = 0
+	D = as.dist(1 - CC)
+	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	X = X[, col.perm]
+	
+	IDX = apply(X, 2, function(x) {
+		order(x, decreasing = T)[1:gene.counts]
+	})
+	
+	rows = as.numeric(IDX)
+	X.sub = X[rows, ]
+	
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+	
+	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+	
+	if(type == "corrplot") {
+		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
+	} else if(type == "heatmap") {
+		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
+	}	
+}
+
+plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap", seriation.method = "OLO") {
+    X = log1p(as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+ 
+	genes = intersect(rownames(X), genes)
+
+	X.sub = X[genes, ]
+	colnames(X.sub) = paste("A", 1:ncol(X.sub), sep = "")
+	
+	set.seed(0)
+	CC = cor(as.matrix(Matrix::t(X.sub)))
+	CC[is.na(CC)] = 0
+	D = as.dist(1-CC)
+	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	set.seed(0)
+	CC = cor(as.matrix(X.sub))
+	CC[is.na(CC)] = 0
+	D = as.dist(1-CC)
+	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+	
+	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+
+	if(type == "corrplot") {
+		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
+	} else if(type == "heatmap") {
+		Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
+	}
+		
+}
+
+plot.archetype.top.genes <- function(ACTIONet.out, gene.counts, type = "heatmap", seriation.method = "OLO") {
+    X = log1p(as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+ 
+	CC = cor(X)
+	CC[is.na(CC)] = 0
+	D = as.dist(1 - CC)
+	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	
+	X = X[, col.perm]
+	
+	IDX = apply(X, 2, function(x) {
+		order(x, decreasing = T)[1:gene.counts]
+	})
+	
+	rows = as.numeric(IDX)
+	X.sub = X[rows, ]
+	colnames(X.sub) = paste("A", 1:ncol(X.sub), sep = "")
+	
+	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+	
+	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+	
+	if(type == "corrplot") {
+		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
+	} else if(type == "heatmap") {
+		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
+	}
+	
 }
