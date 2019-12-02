@@ -22,7 +22,7 @@ ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
 
 plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
 	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = F) {
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = NULL) {
     
     node.size = node.size * 0.5
     
@@ -39,31 +39,32 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     
 	labels = preprocess.labels(ACTIONet.out, labels)
 
-	if( !is.null(labels) & (highlight == T) ) {
-		if( annotation_name == "plot.ACTIONet-tmp") {
-			ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation_name)
+	if(!is.null(highlight)) {
+		if( !is.null(labels) & (tolower(highlight) == "labels") ) {
+			if( annotation_name == "plot.ACTIONet-tmp") {
+				ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation_name)
+			}
+			
+			if( is.null(ACTIONet.out$annotations[[annotation_name]]$highlight) ) {
+				print("Labels are not highlighted ... generating highlight on the fly")
+				ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation_name)			
+			}
+			label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
+
+			transparency.attr = label.hightlight$connectivity.scores		
+		} else if(tolower(highlight) == "connectivity") {
+			transparency.attr = V(ACTIONet.out$ACTIONet)$connectivity
 		}
-		
-		if( is.null(ACTIONet.out$annotations[[annotation_name]]$highlight) ) {
-			print("Labels are not highlighted ... generating highlight on the fly")
-			ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation_name)			
-		}
-		label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
-		
-		if( !is.null(transparency.attr) ) {
-			print(class(transparency.attr))
-			print("highlight=T while transparency.attr is not NULL. Overwriting transparency.attr with highlight values")
-		}
-		transparency.attr = label.hightlight$connectivity.scores		
 	}
 	
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         Annot = NULL
 	} else {
-		Annot = names(labels)[match(sort(unique(labels)), labels)]		
+		Annot = names(labels)[match(sort(unique(labels)), labels)]
 		if(length(CPal) > 1) {
-            Pal = CPal[1:length(Annot)]			
+			idx = labels[match(sort(unique(labels)), labels)]
+            Pal = CPal[idx]			
 		} else {
             Pal = ggpubr::get_palette(CPal, length(Annot))
 		}
@@ -85,7 +86,21 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         vCol.border = colorspace::darken(vCol, 0.5)
     }
 
-    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = FALSE, xlab = "", ylab = "", main = title)
+	x = coors[, 1]
+	y = coors[, 2]
+	x.min = min(x)
+	x.max = max(x)
+	y.min = min(y)
+	y.max = max(y)
+	x.min = x.min - (x.max-x.min)/20
+	x.max = x.max + (x.max-x.min)/20
+	y.min = y.min - (y.max-y.min)/20
+	y.max = y.max + (y.max-y.min)/20
+	XL = c(x.min, x.max)
+	YL = c(y.min, y.max)
+
+
+    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = F, xlab = "", ylab = "", main = title, xlim = XL, ylim = YL) 
 
 	if(add.states == T) {
 		par(new=TRUE)
@@ -99,9 +114,12 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 	    core.colors = rgb(grDevices::convertColor(color = core.Lab, from = "Lab", to = "sRGB"))
 		core.colors = colorspace::lighten(core.colors, 0.1)
 		
-		core.coors = t(t(ACTIONet.out$vis.out$coordinates) %*% M)		
+		core.coors = t(t(coors) %*% M)		
+
+	    graphics::plot(core.coors, pch = 25, add = T, cex = 3*node.size, bg = core.colors, col = "#eeeeee", axes = FALSE, xlab = "", ylab = "", xlim = XL, ylim = YL)
 	    
-	    graphics::plot(core.coors, pch = 25, cex = 4*node.size, bg = core.colors, col = "#eeeeee", axes = FALSE, xlab = "", ylab = "")
+        layout.labels(x = core.coors[, 1], y = core.coors[, 2]-strheight("A"), labels = 1:ncol(M), col = colorspace::darken(core.colors, 0.5), bg = "#eeeeee", r = text.halo.width, cex = label.text.size)
+
 	}    
     
     
@@ -139,23 +157,23 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
     }
     
     if ( (suppress.legend == FALSE) & !is.null(Annot) ) {
-# 		xmin <- par("usr")[1]
-# 		xmax <- par("usr")[2]
-# 		ymin <- par("usr")[3]
-# 		ymax <- par("usr")[4]
-# 
-# 		lgd <- legend(x = mean(c(xmin,xmax)), y =  mean(c(ymin,ymax)), legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = F)
-# 
-#     	par(xpd = T, mai = c(0, 0, 0, lgd$rect$w))
-# 
-# 		legend(x = xmax, y = ymin+lgd$rect$h, legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = T)
+		xmin <- par("usr")[1]
+		xmax <- par("usr")[2]
+		ymin <- par("usr")[3]
+		ymax <- par("usr")[4]
 
-		legend("bottom", legend = Annot, fill = Pal, cex = 0.5, plot = T)
+		lgd <- legend(x = mean(c(xmin,xmax)), y =  mean(c(ymin,ymax)), legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = F)
+
+    	par(xpd = T, mai = c(0, 0, 0, lgd$rect$w))
+
+		legend(x = xmax, y = ymin+lgd$rect$h, legend = Annot, fill = Pal, cex = 0.5, bty = "n", plot = T)
+
+		#legend("bottom", legend = Annot, fill = Pal, cex = 0.5, plot = T)
     }    
 }
 
 
-plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, node.size = 1, CPal = ACTIONet.color.bank) {
+plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, node.size = 1, CPal = ACTIONet.color.bank, highlight = NULL) {
     require(ggplot2)
     require(ggpubr)
     require(threejs)
@@ -168,18 +186,39 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
     
     node.size = node.size * 0.2
 	labels = preprocess.labels(ACTIONet.out, labels)
+	
+	if(!is.null(highlight)) {
+		if( !is.null(labels) & (tolower(highlight) == "labels") ) {
+			if( annotation_name == "plot.ACTIONet-tmp") {
+				ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = labels, annotation.name = annotation_name)
+			}
+			
+			if( is.null(ACTIONet.out$annotations[[annotation_name]]$highlight) ) {
+				print("Labels are not highlighted ... generating highlight on the fly")
+				ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation_name)			
+			}
+			label.hightlight = ACTIONet.out$annotations[[annotation_name]]$highlight
+
+			transparency.attr = label.hightlight$connectivity.scores		
+		} else if(tolower(highlight) == "connectivity") {
+			transparency.attr = V(ACTIONet.out$ACTIONet)$connectivity
+		}
+	}
+	
+	
 	if(is.null(labels)) {
         vCol = V(ACTIONet)$color
         add.text = F
         suppress.legend = T
 	} else {
-		Annot = names(labels)[match(sort(unique(labels)), labels)]		
-		if(is.vector(CPal)) {
-            Pal = CPal[1:length(Annot)]			
+		Annot = names(labels)[match(sort(unique(labels)), labels)]
+		if(length(CPal) > 1) {
+			idx = labels[match(sort(unique(labels)), labels)]
+            Pal = CPal[idx]			
 		} else {
             Pal = ggpubr::get_palette(CPal, length(Annot))
 		}
-        names(Pal) = Annot
+		names(Pal) = Annot
         vCol = Pal[names(labels)]
 	}
 
@@ -272,7 +311,7 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
 		print('Error in plot.ACTIONet.gene.view: "unification.out" is not in ACTIONet.out. Please run unify.cell.states() first.')
 		return()
 	}
-	gene.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
+	gene.enrichment.table = as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])
 	
 	filtered.rows = grep(blacklist.pattern, rownames(gene.enrichment.table))
 	if(length(filtered.rows) > 0)
@@ -309,9 +348,27 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
 
 	x = gene.coors[, 1]
 	y = gene.coors[, 2]
+	x.min = min(x)
+	x.max = max(x)
+	y.min = min(y)
+	y.max = max(y)
+	x.min = x.min - (x.max-x.min)/10
+	x.max = x.max + (x.max-x.min)/10
+	y.min = y.min - (y.max-y.min)/10
+	y.max = y.max + (y.max-y.min)/10
+	
 	words = selected.genes
-    plot(x, y, type = "n", col = gene.colors, axes = FALSE, xlab = "", ylab = "", main = title)
-    lay <- wordlayout(x, y, words, label.text.size)
+	plot(x = NULL, y = NULL, xlim = c(x.min, x.max), ylim = c(y.min, y.max), axes = FALSE, xlab = "", ylab = "", main = title)
+    lay <- wordlayout(x, y, words, 1.5*label.text.size)
+	# x0 <- lay[, 1]
+	# y0 <- lay[, 2]
+	# w0 <- lay[, 3]
+	# h0 <- lay[, 4]
+	# x.min = min(x0-w0/2)
+	# x.max = max(x0+w0/2)
+	# y.min = min(y0-h0/2)
+	# y.max = max(y0+h0/2)
+    
     for (i in 1:length(x)) {
         xl <- lay[i, 1]
         yl <- lay[i, 2]
@@ -319,13 +376,14 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
         h <- lay[i, 4]
         if (x[i] < xl || x[i] > xl + w || y[i] < yl || y[i] > 
             yl + h) {
-            points(x[i], y[i], pch = 16, col = colorspace::darken(gene.colors[[i]], 0.6), cex = 0.75*label.text.size)
+            points(x[i], y[i], pch = 16, col = colorspace::darken(gene.colors[[i]], 0.35), cex = 0.75*label.text.size)
             nx <- xl + 0.5 * w
             ny <- yl + 0.5 * h
-            lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(gene.colors[[i]], 0.5))
+            lines(c(x[i], nx), c(y[i], ny), col = colorspace::darken(gene.colors[[i]], 0.3))
         }
     }
     text(lay[, 1] + 0.5 * lay[, 3], lay[, 2] + 0.5 * lay[, 4], words, col = gene.colors, cex = label.text.size, xlab = "", ylab = "", main = title)
+    
 }
 
 plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
@@ -344,9 +402,10 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
         vCol = V(ACTIONet)$color
         Annot = NULL
 	} else {
-		Annot = names(labels)[match(sort(unique(labels)), labels)]		
+		Annot = names(labels)[match(sort(unique(labels)), labels)]
 		if(length(CPal) > 1) {
-            Pal = CPal[1:length(Annot)]			
+			idx = labels[match(sort(unique(labels)), labels)]
+            Pal = CPal[idx]			
 		} else {
             Pal = ggpubr::get_palette(CPal, length(Annot))
 		}
@@ -383,7 +442,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
 		}
 	} else {
 		if( ('unification.out' %in% names(ACTIONet.out)) ) {
-			temp.enrichment.table = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])			
+			temp.enrichment.table = as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])			
 			if( !is.null(row.names(temp.enrichment.table)) ) {
 				filtered.rows = grep(blacklist.pattern, rownames(temp.enrichment.table))
 				if(length(filtered.rows) > 0)
@@ -496,8 +555,8 @@ plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, 
 		return()
 	}
 	
-	x = sce@assays[["logcounts"]][gene.name, ]
-	is(sum(x) == 0) {
+	x = SummarizedExperiment::assays(sce)$logcounts[gene.name, ]
+	if(sum(x) == 0) {
 		print("Gene is not expressed")
 		return()
 	}
@@ -517,13 +576,20 @@ plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, 
 }
 
 
-plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE) {
+plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE, highlight = NULL) {
 
     node.size = node.size * 0.5
 
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
+
+	if(!is.null(highlight)) {
+		if(tolower(highlight) == "connectivity") {
+			transparency.attr = V(ACTIONet.out$ACTIONet)$connectivity
+		}
+	}
+	
 
     NA.col = "#eeeeee"
         
@@ -701,7 +767,7 @@ plot.annotations.selected.genes <- function(ACTIONet.out, annotation.name, genes
 		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" does not DE.profile. Please run compute.annotations.feature.specificity() first.\n', annotation.name)
 		return()
     }
-    X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
  
 	genes = intersect(rownames(X), genes)
 
@@ -741,7 +807,7 @@ plot.annotations.top.genes <- function(ACTIONet.out, annotation.name, gene.count
 		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" does not DE.profile. Please run compute.annotations.feature.specificity() first.\n', annotation.name)
 		return()
     }
-    X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
  
 	CC = cor(X)
 	CC[is.na(CC)] = 0
@@ -769,7 +835,7 @@ plot.annotations.top.genes <- function(ACTIONet.out, annotation.name, gene.count
 }
 
 plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap", seriation.method = "OLO") {
-    X = log1p(as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
  
 	genes = intersect(rownames(X), genes)
 
@@ -799,33 +865,50 @@ plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap",
 	}
 		
 }
-
-plot.archetype.top.genes <- function(ACTIONet.out, gene.counts, type = "heatmap", seriation.method = "OLO") {
-    X = log1p(as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
- 
+plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete") {
+    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
 	CC = cor(X)
 	CC[is.na(CC)] = 0
 	D = as.dist(1 - CC)
 	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-	
 	X = X[, col.perm]
-	
+
 	IDX = apply(X, 2, function(x) {
-		order(x, decreasing = T)[1:gene.counts]
+		order(x, decreasing = T)[1:top.genes]
 	})
 	
-	rows = as.numeric(IDX)
-	X.sub = X[rows, ]
-	colnames(X.sub) = paste("A", 1:ncol(X.sub), sep = "")
+	rows = sort(unique(as.numeric(IDX)))
+	X = X[rows, ]
 	
-	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
 	
-	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+	Z = t(scale(t(X)))
+	
+	idx = split(1:nrow(X), apply(Z, 1, which.max))
+	row.perm = unlist(lapply(1:length(idx), function(i) {
+		ii = idx[[i]]
+		if(length(ii) == 1) {
+			return(ii)
+		} else if(length(ii) > 1) {
+			v = Z[ii, i]
+			return(ii[order(v, decreasing = T)])
+		}
+	}))
+	
+	# CC = cor(Matrix::t(X))
+	# CC[is.na(CC)] = 0
+	# D = as.dist(1 - CC)
+	# row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+		
+	
+	Enrichment = Matrix::t(scale(Matrix::t(X[row.perm, ])))
+	colnames(Enrichment) = col.perm
+	
 	
 	if(type == "corrplot") {
 		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
 	} else if(type == "heatmap") {
-		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
+		gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
+		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = "Cell states", column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
 	}
 	
 }

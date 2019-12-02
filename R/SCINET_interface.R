@@ -17,11 +17,11 @@ run.SCINET.archetype <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+			DE.profile = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
 		} else {
 			print("unification.out is not in ACTIONet.out. Running unify.cell.states() first ...")
 			ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr)    
-			DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+			DE.profile = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
 		}
 	} else {
 		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
@@ -89,7 +89,7 @@ run.SCINET.annotation <- function(ACTIONet.out, annotation_name, G=NULL, min.edg
 		print("DE.profile of the annotation is missing. Computing it from scratch (please wait) ... ");		
 		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation_name)
 	}
-	DE.profile  = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+	DE.profile  = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)[["significance"]]))
 	
 	common.genes = intersect(rownames(DE.profile), rownames(PCNet))
 	if(length(common.genes) == 0) {

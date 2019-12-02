@@ -147,14 +147,13 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     })
     W.core = S_r %*% C.core
     H.core = runsimplexRegression(W.core, S_r)
-    cellstates.core = sce@assays[[sce.data.attr]] %*% C.core
+    cellstates.core = assay(sce)[[sce.data.attr]] %*% C.core
     
     ## DE stuff
     print("Compute differential expression")
     
     ### Official DE
     DE.core = assess.feature.specificity(sce, H.core, sce.data.attr = sce.data.attr)
-    #DE.core@assays[["significance"]] = as.data.frame(as.matrix(DE.core@assays[["significance"]]))
     
     print("Assign cells to cell states")
     ## Cell assignments

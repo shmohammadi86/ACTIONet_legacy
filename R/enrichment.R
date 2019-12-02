@@ -74,7 +74,7 @@ Chernoff.enrichment.noRowScaling <- function(A, Ind.mat) {
 	return(logPvals)
 }
 
-assess.continuous.autocorrelation <- function(ACTIONet.out, variables, rand_perm = 100, num_shuffles = 10000) {
+assess.continuous.autocorrelation.Cpp <- function(ACTIONet.out, variables, rand_perm = 100, num_shuffles = 10000) {
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
     
@@ -84,10 +84,30 @@ assess.continuous.autocorrelation <- function(ACTIONet.out, variables, rand_perm
 	if( (ncol(variables) == nV) & (nrow(variables) != nV))
 		variables = t(variables)
 		
-    Enrichment = computeAutocorrelation(G, as.matrix(variables), rand_perm, num_shuffles)
+    Enrichment = assess.computeAutocorrelation_Geary(G, as.matrix(variables), rand_perm, num_shuffles)
     
     return(Enrichment)
 }
+
+assess.continuous.autocorrelation <- function(ACTIONet.out, variables) {
+	N = ncol(ACTIONet.out$build.out$ACTIONet)
+	A = ACTIONet.out$build.out$ACTIONet
+	degs = Matrix::colSums(A)
+	L = -A
+	diag(L) = degs
+
+	W = sum(A@x)
+	Cs = apply(variables, 2, function(x) {
+		mu = mean(x)
+		delta = x - mu
+		denom = as.numeric(2*W*(t(delta) %*% delta))
+		
+		C = as.numeric((N-1) * t(x) %*% L %*% x / denom)
+	})
+	
+	return(1 - Cs/2)
+}
+
 
 
 assess.categorical.autocorrelation <- function(ACTIONet.out, labels) {
@@ -184,7 +204,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
 		if(core == T) {
 			if (("unification.out" %in% names(ACTIONet.out))) {
 				print("Using unification.out$DE.core (merged archetypes)")
-				DE.profile = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+				DE.profile = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
 			} else {
 				print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 				return()
@@ -192,7 +212,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
 		} else {
 			if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 				print("Using archetype.differential.signature (all archetypes)")
-				DE.profile = as.matrix(log1p(ACTIONet.out$archetype.differential.signature@assays[["significance"]]))
+				DE.profile = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]]))
 			} else {
 				print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 				return()
@@ -281,7 +301,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 		print("Please run compute.annotations.feature.specificity() first")
 		return()		
 	}
-	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+	DE.profile = as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[idx]]$DE.profile)[["significance"]])
 	
     if (is.null(rownames(DE.profile))) {
         print("Rows of the DE profile have to be named with genes.")
@@ -291,7 +311,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
     if (is.matrix(genesets) | is.sparseMatrix(genesets)) {    
 		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
 	}
-	ind.mat = as(sapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)), "sparseMatrix")
+	ind.mat = as(do.call(cbind, lapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs))), "sparseMatrix")
 	rownames(ind.mat) = rownames(DE.profile)
     
     # prune annotations
@@ -352,7 +372,7 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
 }
 
 
-geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", core = T) {
+geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, max.size = 500, genes.subset = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
 	DE.profile = as.matrix(gene.scores)
 	
     if (is.null(rownames(DE.profile))) {
@@ -363,15 +383,20 @@ geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, 
     if (is.matrix(genesets) | is.sparseMatrix(genesets)) {    
 		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
 	}
-	ind.mat = as(sapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)), "sparseMatrix")
-	rownames(ind.mat) = rownames(DE.profile)
+	ind.mat = as(do.call(cbind, as.matrix(lapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)))), "sparseMatrix")
+	
     
     # prune annotations
     cs = Matrix::colSums(ind.mat)
     mask = (min.size <= cs) & (cs <= max.size)
-    ind.mat = ind.mat[, mask]
+    if(sum(mask) == 1) {
+		ind.mat = as.matrix(ind.mat[, mask])
+	} else {
+		ind.mat = ind.mat[, mask]    
+	}
     #rs = Matrix::rowSums(ind.mat)
     #ind.mat = ind.mat[rs > 0, ]
+	rownames(ind.mat) = rownames(DE.profile)
     
     
     # prune enrichment profile DE.profile[DE.profile < min.enrichment] = 0 rs = Matrix::rowSums(DE.profile) DE.profile = DE.profile[rs
@@ -389,7 +414,11 @@ geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, 
     DE.profile = DE.profile[idx, ]
     
     idx = match(common.genes, rownames(ind.mat))
-    X = ind.mat[idx, ]
+    if(ncol(ind.mat) == 1) {
+	    X = as.matrix(ind.mat[idx, ])
+	} else {
+	    X = ind.mat[idx, ]
+	}
     
     # Normalize scores to avoid heavy-tail side-effect(s) pos.scores = DE.profile pos.scores[pos.scores < 0] = 0
     A = DE.profile 
@@ -404,7 +433,7 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
 	library(Matrix)
 	print("Computing feature specificity ... ")
 	
-    A = as(sce@assays[[sce.data.attr]], "sparseMatrix")
+    A = as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix")
     
     print("Binarize matrix")
     B = A
@@ -549,28 +578,11 @@ compute.annotations.feature.specificity <- function(ACTIONet.out, sce, annotatio
     
     diff.sce = assess.feature.specificity(sce, X, sce.data.attr = sce.data.attr)
     
-	colnames(diff.sce@assays[["significance"]]) = colnames(diff.sce@assays[["profile"]]) = colnames(diff.sce) = Annot.sorted
+	colnames(SummarizedExperiment::assays(diff.sce)[["significance"]]) = colnames(SummarizedExperiment::assays(diff.sce)[["profile"]]) = colnames(diff.sce) = Annot.sorted
 	
 	ACTIONet.out$annotations[[idx]]$DE.profile = diff.sce
 	
     return(ACTIONet.out)
-}
-
-
-find.cluster.markers <- function(sce, clusters, direction = "up", batch = NULL, test.type = "ttest") {
-    if (test.type == "ttest") {
-        tbl = scran::pairwiseTTests(sce@assays[["logcounts"]], clusters = clusters, direction = direction, block = batch)
-        tbl.out <- combineMarkers(tbl$statistics, tbl$pairs, effect = "logFC")
-    } else if (test.type == "wilcoxon") {
-        tbl = scran::pairwiseWilcox(sce@assays[["logcounts"]], clusters = clusters, direction = direction, block = batch)
-        tbl.out <- combineMarkers(tbl$statistics, tbl$pairs, effect = "overlap")
-    } else {
-        print("test.type should be either 'ttest' or 'wilcox'")
-        return()
-    }
-    output = lapply(tbl.out, function(X) as.data.frame(X))
-    
-    return(output)
 }
 
 
@@ -701,7 +713,7 @@ find.archtype.binary.phenotype.associated.genes <- function(ACTIONet.out, sce, p
     
     if(is.null(individuals)) {
 		print("No individual information is provided. Performing baseline DE")
-		A = as(sce@assays[["logcounts"]], 'dgTMatrix')		
+		A = as(SummarizedExperiment::assays(sce)$logcounts, 'dgTMatrix')		
 
 		ctl.cells.mask = (condition.mask == 0)
 		case.cells.mask = (condition.mask == 1)
@@ -738,7 +750,7 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(ACTIONet.out$unification.out$DE.core@assays[["significance"]]))
+			archetype.panel = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
 		} else {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 			return()
@@ -746,7 +758,7 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
 	} else {
 		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(ACTIONet.out$archetype.differential.signature@assays[["significance"]]))
+			archetype.panel = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]]))
 		} else {
 			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()

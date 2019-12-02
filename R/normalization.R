@@ -78,11 +78,11 @@ normalize.sce <- function(sce, norm.method) {
         sce.norm = scone.normalize(sce)
     } else {
         sce.norm = sce
-        A = as(counts(sce), "dgTMatrix")
+        A = as(SummarizedExperiment::assays(sce.norm)$counts, "dgTMatrix")
         cs = Matrix::colSums(A)
         cs[cs == 0] = 1
         B = Matrix::sparseMatrix(i = A@i + 1, j = A@j + 1, x = log1p(median(cs) * (A@x/cs[A@j + 1])), dims = dim(A))
-        logcounts(sce.norm) = B
+        SummarizedExperiment::assays(sce.norm)$logcounts = B
     }
     
     metadata(sce.norm)$normalization.method = norm.method

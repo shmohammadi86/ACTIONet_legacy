@@ -5,7 +5,7 @@ reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter 
     sce.norm = sce
     
     if (is.null(rownames(sce.norm))) {
-        rownames(sce.norm) = sapply(1:nrow(sce), function(i) sprintf("Gene%d", i))
+        rownames(sce.norm) = sapply(1:nrow(sce.norm), function(i) sprintf("Gene%d", i))
     }
     if (!("cell.hashtag" %in% colnames(colData(sce.norm)))) {
         print("tagging cells")
@@ -21,16 +21,15 @@ reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter 
         metadata(sce.norm)$tagging.time = time.tag
     }
 
-    if (!("logcounts" %in% names(sce@assays))) {
+    if (!("logcounts" %in% names(SummarizedExperiment::assays(sce.norm)))) {
         print("Normalizing sce object")
         
-        sce.norm = normalize.sce(sce, norm.method)
-		rownames(sce.norm@assays[["counts"]]) = rownames(sce.norm@assays[["logcounts"]]) = rownames(sce.norm)
-		colnames(sce.norm@assays[["counts"]]) = colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
+        sce.norm = normalize.sce(sce.norm, norm.method)
+		rownames(SummarizedExperiment::assays(sce.norm)$counts) = rownames(SummarizedExperiment::assays(sce.norm)$logcounts) = rownames(sce.norm)
+		colnames(SummarizedExperiment::assays(sce.norm)$counts) = colnames(SummarizedExperiment::assays(sce.norm)$logcounts) = colnames(sce.norm)
     } else {
-        sce.norm = sce
-		rownames(sce.norm@assays[["logcounts"]]) = rownames(sce.norm)
-		colnames(sce.norm@assays[["logcounts"]]) = colnames(sce.norm)
+		rownames(SummarizedExperiment::assays(sce.norm)$logcounts) = rownames(sce.norm)
+		colnames(SummarizedExperiment::assays(sce.norm)$logcounts) = colnames(sce.norm)
     }
     
     # Make sure rownames are consistent Check if it doesn't have rownames
@@ -38,7 +37,7 @@ reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter 
     
     print("Running main reduction")
     suppressWarnings({
-        reduction.out = reduceGeneExpression(as(sce.norm@assays[["logcounts"]], "sparseMatrix"), reduced_dim = reduced_dim, method = 1, 
+        reduction.out = reduceGeneExpression(as(SummarizedExperiment::assays(sce.norm)$logcounts, "sparseMatrix"), reduced_dim = reduced_dim, method = 1, 
             iters = max.iter)
     })
     
@@ -104,7 +103,7 @@ reduce.and.batch.correct.sce.MNN <- function(sce, batch.vec = NULL, norm.method 
     
     
     sce.norm = do.call(SingleCellExperiment::cbind, sce.list.norm)
-    sce.norm@assays[["logcounts"]] = as(sce.norm@assays[["logcounts"]], "sparseMatrix")
+    SummarizedExperiment::assays(sce.norm)$logcounts = as(SummarizedExperiment::assays(sce.norm)$logcounts, "sparseMatrix")
     
     metadata(sce.norm)$normalization.method = "multiBatchNorm"
     metadata(sce.norm)$normalization.time = Sys.time()
@@ -114,7 +113,7 @@ reduce.and.batch.correct.sce.MNN <- function(sce, batch.vec = NULL, norm.method 
     if (is.null(rownames(sce.norm))) {
         rownames(sce.norm) = sapply(1:nrow(sce), function(i) sprintf("Gene%d", i))
     }
-    rownames(sce.norm@assays[["logcounts"]]) = rownames(counts(sce.norm)) = rownames(sce.norm)
+    rownames(SummarizedExperiment::assays(sce.norm)$logcounts) = rownames(counts(sce.norm)) = rownames(sce.norm)
     
     if (!("cell.hashtag" %in% colnames(colData(sce.norm)))) {
         time.tag = Sys.time()
@@ -129,7 +128,7 @@ reduce.and.batch.correct.sce.MNN <- function(sce, batch.vec = NULL, norm.method 
         # Check if it doesn't have colnames
         colnames(sce.norm) = sce.norm$cell.hashtag
     }
-    colnames(sce.norm@assays[["logcounts"]]) = colnames(counts(sce.norm)) = colnames(sce.norm)
+    colnames(SummarizedExperiment::assays(sce.norm)$logcounts) = colnames(counts(sce.norm)) = colnames(sce.norm)
     
     
     set.seed(0)

@@ -468,7 +468,7 @@ unhash = function(hashed, alphabet) {
 
 layout.labels <- function(x, y, labels, col = "white", bg = "black", r = 0.1, cex = 1.0, ...) {
 	require(wordcloud)
-    lay <- wordcloud::wordlayout(x, y, words = labels, cex = cex, ...)
+    lay <- wordcloud::wordlayout(x, y, words = labels, cex = 1.25*cex, ...)
 
     x = lay[, 1] + 0.5 * lay[, 3]
     y = lay[, 2] + 0.5 * lay[, 4]
@@ -512,6 +512,10 @@ preprocess.labels <- function(ACTIONet.out, labels) {
 			return(NULL)
 		}		
 		labels = ACTIONet.out$annotations[[idx]]$Labels
+	}
+
+	if((length(labels) > 1) & is.logical(labels)) {
+		labels = factor(as.numeric(labels), levels = c(0, 1), labels = c("No", "Yes"))
 	}
 	
 	if((length(labels) > 1) & is.character(labels)) {
@@ -597,9 +601,9 @@ doubleNorm <- function(Enrichment, log.transform = T, min.threshold = 0) {
 
 get.archetype.markers <- function(ACTIONet.out, top.genes = 20, core = T) {
 	if(core == T) {
-		cell.state.DE = ACTIONet.out$unification.out$DE.core@assays[["significance"]]
+		cell.state.DE = SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]
 	} else {
-		cell.state.DE = ACTIONet.out$archetype.differential.signature@assays[["significance"]]
+		cell.state.DE = SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]]
 	}
 	Top.genes = apply(cell.state.DE, 2, function(x) rownames(cell.state.DE )[order(x, decreasing = T)[1:top.genes]])
 	
@@ -608,9 +612,9 @@ get.archetype.markers <- function(ACTIONet.out, top.genes = 20, core = T) {
 
 get.archetype.differential.scores <- function(ACTIONet.out, top.genes = 20, core = T) {
 	if(core == T) {
-		cell.state.DE = ACTIONet.out$unification.out$DE.core@assays[["significance"]]
+		cell.state.DE = SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]
 	} else {
-		cell.state.DE = ACTIONet.out$archetype.differential.signature@assays[["significance"]]
+		cell.state.DE = SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]]
 	}
 	Top.genes.row = apply(cell.state.DE, 2, function(x) order(x, decreasing = T)[1:top.genes])
 
@@ -631,7 +635,7 @@ get.annotation.markers <- function(ACTIONet.out, annotation.name, top.genes = 20
 		print("Please run compute.annotations.feature.specificity() first")
 		return()		
 	}
-	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+	DE.profile = as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[idx]]$DE.profile)[["significance"]])
 
 	Top.genes = apply(DE.profile, 2, function(x) rownames(DE.profile)[order(x, decreasing = T)[1:top.genes]])
 	
@@ -651,7 +655,7 @@ get.annotation.differential.scores <- function(ACTIONet.out, annotation.name, to
 		print("Please run compute.annotations.feature.specificity() first")
 		return()		
 	}
-	DE.profile = as.matrix(ACTIONet.out$annotations[[idx]]$DE.profile@assays[["significance"]])
+	DE.profile = as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[idx]]$DE.profile)[["significance"]])
 	Top.genes.row = apply(DE.profile, 2, function(x) order(x, decreasing = T)[1:top.genes])
 
 	scores = (DE.profile[Top.genes.row, ])

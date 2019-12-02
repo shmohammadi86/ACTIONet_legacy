@@ -11,10 +11,10 @@ import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations 
 	}
 	
     if (prefilter) {
-        cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
+        cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         
-        feature.counts = Matrix::colSums(sce@assays[["counts"]] > 0)
+        feature.counts = Matrix::colSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[, feature.counts > min.genes.per.cell]
     }
     
@@ -38,10 +38,10 @@ import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = 
     sce <- SingleCellExperiment(assays = list(counts = counts))
     
     if (prefilter) {
-        cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
+        cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         
-        feature.counts = Matrix::colSums(sce@assays[["counts"]] > 0)
+        feature.counts = Matrix::colSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[, feature.counts > min.genes.per.cell]
     }
     
@@ -106,10 +106,10 @@ import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_
 	
     
     if (prefilter) {
-        cell.counts = Matrix::rowSums(sce@assays[["counts"]] > 0)
+        cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         
-        feature.counts = Matrix::colSums(sce@assays[["counts"]] > 0)
+        feature.counts = Matrix::colSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[, feature.counts > min.genes.per.cell]
     }
     

@@ -5,7 +5,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     require(igraph)
     require(ACTIONet)
     
-    if (!(sce.data.attr %in% names(sce@assays))) {
+    if (!(sce.data.attr %in% names(SummarizedExperiment::assays(sce)))) {
         R.utils::printf("Attribute %s is not an assay of the input sce\n", sce.data.attr)
         return()
     }
@@ -21,7 +21,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     }
     
     # Reconstruct archetypes in the original space
-    reconstruct.out = reconstructArchetypes(as(sce@assays[[sce.data.attr]], "sparseMatrix"), ACTION.out$C, ACTION.out$H, z_threshold = arch.specificity.z)
+    reconstruct.out = reconstructArchetypes(as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix"), ACTION.out$C, ACTION.out$H, z_threshold = arch.specificity.z)
     rownames(reconstruct.out$archetype_profile) = rownames(sce)
     
     # Build ACTIONet
@@ -435,12 +435,12 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
     matched.idx = match(matched.genes, rownames(sce))
     
     # Smooth/impute gene expressions
-    if (!(expr.slot %in% names(sce@assays))) {
+    if (!(expr.slot %in% names(SummarizedExperiment::assays(sce)))) {
         R.utils::printf("%s is not in assays of sce\n", expr.slot)
     }
     
     if (length(matched.idx) > 1) {
-        raw.gene.expression = Matrix::t(as(sce@assays[[expr.slot]][matched.idx, ], "dgTMatrix"))
+        raw.gene.expression = Matrix::t(as(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ], "dgTMatrix"))
         U = raw.gene.expression
         U[U < 0] = 0
         cs = Matrix::colSums(U)
@@ -448,7 +448,7 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
         U = as.matrix(U[, cs > 0])
         gg = matched.genes[cs > 0]
     } else {
-        raw.gene.expression = matrix(sce@assays[[expr.slot]][matched.idx, ])
+        raw.gene.expression = matrix(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ])
         U = raw.gene.expression/sum(raw.gene.expression)
         gg = matched.genes
     }
@@ -507,12 +507,12 @@ impute.genes.using.archetype <- function(ACTIONet.out, genes, prune = FALSE) {
     matched.idx = match(matched.genes, rownames(sce))
     
     # Smooth/impute gene expressions
-    if (!(expr.slot %in% names(sce@assays))) {
+    if (!(expr.slot %in% names(SummarizedExperiment::assays(sce)))) {
         R.utils::printf("%s is not in assays of sce\n", expr.slot)
     }
     
     if (length(matched.idx) > 1) {
-        raw.gene.expression = Matrix::t(as(sce@assays[[expr.slot]][matched.idx, ], "dgTMatrix"))
+        raw.gene.expression = Matrix::t(as(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ], "dgTMatrix"))
         U = raw.gene.expression
         U[U < 0] = 0
         cs = Matrix::colSums(U)
@@ -520,7 +520,7 @@ impute.genes.using.archetype <- function(ACTIONet.out, genes, prune = FALSE) {
         U = as.matrix(U[, cs > 0])
         gg = matched.genes[cs > 0]
     } else {
-        raw.gene.expression = matrix(sce@assays[[expr.slot]][matched.idx, ])
+        raw.gene.expression = matrix(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ])
         U = raw.gene.expression/sum(raw.gene.expression)
         gg = matched.genes
     }

@@ -203,7 +203,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
 			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$unification.out$DE.core@assays[["significance"]])))
+			archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])))
 		} else {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 			return()
@@ -211,7 +211,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 	} else {
 		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
 			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(t(ACTIONet.out$archetype.differential.signature@assays[["significance"]])))
+			archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]])))
 		} else {
 			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
 			return()
@@ -312,7 +312,7 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
 	if( is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile) ) {
 		ACTIONet.out = compute.annotations.feature.specificity(ACTIONet.out, sce, annotation.cluster)
 	}
-	X = log1p(as.matrix(ACTIONet.out$annotations[[cl.idx]]$DE.profile@assays[["significance"]]))
+	X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
 	# colnames(X) = ACTIONet.out$annotations$Leiden$labelEnrichment$fullLabels
 
     GS.names = names(marker.genes)
@@ -594,7 +594,7 @@ prioritize.celltypes <- function(ACTIONet.out, species = "Human", plot = T) {
 		return()
 	}
 	
-	DE.profile = as.matrix(ACTIONet.out$unification.out$DE.core@assays[["significance"]])
+	DE.profile = as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])
 	if(tolower(species) == "human") {
 		data("CellMarkerDB_human")
 		marker.genes = apply(CellMarkerDB_human, 2, function(x) intersect(rownames(DE.profile), rownames(CellMarkerDB_human)[x > 0]))
