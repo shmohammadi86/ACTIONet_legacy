@@ -468,7 +468,7 @@ unhash = function(hashed, alphabet) {
 
 layout.labels <- function(x, y, labels, col = "white", bg = "black", r = 0.1, cex = 1.0, ...) {
 	require(wordcloud)
-    lay <- wordcloud::wordlayout(x, y, words = labels, cex = 1.25*cex, ...)
+    lay <- ACTIONet::wordlayout(x, y, words = labels, cex = 1.25*cex, ...)
 
     x = lay[, 1] + 0.5 * lay[, 3]
     y = lay[, 2] + 0.5 * lay[, 4]
