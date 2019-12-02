@@ -79,8 +79,9 @@ namespace ACTION {
 		
 		if(m < n) {
 			printf("\t\t\tInitializing PCA (mode 1) ... ");
-			arma_rng::set_seed(seed);			
-			Q = randn( n, dim+s ); // randNorm(n, dim+s, seed);
+			//arma_rng::set_seed(seed);			
+			//Q = randn( n, dim+s );
+			Q = randNorm(n, dim+s, seed);
 			Q = A*Q;
 			if (iters == 0) {
 				SVD_out = eigSVD(Q);
@@ -117,8 +118,9 @@ namespace ACTION {
 		}
 		else {
 			printf("\t\t\tInitializing PCA (mode 2) ... ");				
-			arma_rng::set_seed(seed);
-			Q = randn( m, dim+s ); //randNorm(m, dim+s, seed);
+			// arma_rng::set_seed(seed);
+			// Q = randn( m, dim+s ); 
+			Q = randNorm(m, dim+s, seed);
 			Q = trans(A)*Q;
 			if (iters == 0) {
 				SVD_out = eigSVD(Q);

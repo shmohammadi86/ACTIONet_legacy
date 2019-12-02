@@ -91,7 +91,7 @@ normalize.sce <- function(sce, norm.method) {
     return(sce.norm)
 }
 
-normalize.sce.by.labels <- function(sce.in, Labels, norm.method) {
+normalize.sce.by.labels <- function(sce.in, Labels, norm.method = "default") {
     IDX = split(1:ncol(sce.in), Labels)
     sub.sces = sapply(IDX, function(idx) {
         sub.sce = normalize.sce(sce.in[, idx], norm.method)

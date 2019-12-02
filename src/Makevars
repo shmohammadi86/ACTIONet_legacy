@@ -1,9 +1,4 @@
-MKLROOT=~/intel/mkl
-ifneq ($(wildcard ${MKLROOT}/.*),)
-	LINALG=-Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_ilp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -ldl
-else
-	LINALG=$(BLAS_LIBS) $(LAPACK_LIBS)
-endif
+LINALG=$(BLAS_LIBS) $(LAPACK_LIBS)
 SOURCES=$(wildcard ACTION/*.cc)
 SOURCES+=$(wildcard ACTIONet/*.cc)
 OBJECTS=ACTION.o ACTIONetcore.o RcppExports.o $(SOURCES:.cc=.o)

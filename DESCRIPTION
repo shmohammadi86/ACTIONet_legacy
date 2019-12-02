@@ -14,8 +14,8 @@ Maintainer: Shahin Mohammadi <mohammadi@broadinstitute.org>
 Description: 
 License: GPL (>= 2)
 URL: http://compbio.mit.edu/ACTIONet/
-Depends: Rcpp, RcppArmadillo, NetLibR, Matrix, igraph, SingleCellExperiment, SummarizedExperiment, wordcloud
-Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, ComplexHeatmap, plotly,threejs,viridis,colorspace,scales,RColorBrewer, wordcloud
+Depends: Rcpp, RcppArmadillo, NetLibR, Matrix, igraph, SingleCellExperiment, SummarizedExperiment, wordcloud,plotly,threejs,viridis,colorspace,scales,RColorBrewer
+Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, ComplexHeatmap, 
 Suggests:scran
 LinkingTo: Rcpp,RcppArmadillo
 Remotes: immunogenomics/harmony,mbojan/alluvial,shmohammadi86/NetLibR
