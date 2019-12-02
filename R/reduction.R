@@ -63,7 +63,7 @@ reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter 
 
 batch.correct.sce.Harmony <- function(sce, batch.vec) {
     require(harmony)
-    sce@reducedDims$S_r = harmony::HarmonyMatrix(sce@reducedDims$S_r, batch.vec, do_pca = FALSE)
+    reducedDims(sce)$S_r = harmony::HarmonyMatrix(reducedDims(sce)$S_r, batch.vec, do_pca = FALSE)
     return(sce)
 }
 

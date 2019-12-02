@@ -13,11 +13,11 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     # Run ACTION
     if (!is.null(batch)) {
         batch.vec = as.numeric(factor(batch))
-        ACTION.out = runACTION_withBatch(t(sce@reducedDims[[reduction_slot]]), batch.vec, k_min = k_min, k_max = k_max, max_correction_rounds = batch.correction.rounds, 
+        ACTION.out = runACTION_withBatch(t(reducedDims(sce)[[reduction_slot]]), batch.vec, k_min = k_min, k_max = k_max, max_correction_rounds = batch.correction.rounds, 
             lambda = batch.lambda, numThreads = thread_no)
         
     } else {
-        ACTION.out = runACTION(t(sce@reducedDims[[reduction_slot]]), k_min = k_min, k_max = k_max, thread_no = thread_no)
+        ACTION.out = runACTION(t(reducedDims(sce)[[reduction_slot]]), k_min = k_min, k_max = k_max, thread_no = thread_no)
     }
     
     # Reconstruct archetypes in the original space
@@ -31,9 +31,9 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
-        initial.coordinates = t(scale(sce@reducedDims[[reduction_slot]]))
+        initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
-        initial.coordinates = t(sce@reducedDims[[reduction_slot]])
+        initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
     
     vis.out = layoutACTIONet(build.out$ACTIONet, S_r = initial.coordinates, compactness_level = layout.compactness, n_epochs = n_epochs)
@@ -102,7 +102,7 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     # Build ACTIONet
     set.seed(0)
     
-    if (!(reduction_slot %in% names(sce@reducedDims))) {
+    if (!(reduction_slot %in% names(reducedDims(sce)))) {
         R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
         return()
     }
@@ -113,9 +113,9 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
-        initial.coordinates = t(scale(sce@reducedDims[[reduction_slot]]))
+        initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
-        initial.coordinates = t(sce@reducedDims[[reduction_slot]])
+        initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
     
     
@@ -154,9 +154,9 @@ rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 
     
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
-        initial.coordinates = t(scale(sce@reducedDims[[reduction_slot]]))
+        initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
-        initial.coordinates = t(sce@reducedDims[[reduction_slot]])
+        initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
     
     vis.out = layoutACTIONet(build.out$ACTIONet, S_r = initial.coordinates, compactness_level = compactness_level, n_epochs = n_epochs)

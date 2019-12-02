@@ -121,7 +121,7 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")
-    S_r = t(sce@reducedDims[[reduction_slot]])
+    S_r = t(reducedDims(sce)[[reduction_slot]])
     C = ACTIONet.out$reconstruct.out$C_stacked
     W_r = S_r %*% C
     

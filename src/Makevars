@@ -1,5 +1,11 @@
+MKLROOT=~/intel/mkl
+ifneq ($(wildcard ${MKLROOT}/.*),)
+	LINALG=-Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_ilp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -ldl
+else
+	LINALG=$(BLAS_LIBS) $(LAPACK_LIBS)
+endif
 SOURCES=$(wildcard ACTION/*.cc)
 SOURCES+=$(wildcard ACTIONet/*.cc)
 OBJECTS=ACTION.o ACTIONetcore.o RcppExports.o $(SOURCES:.cc=.o)
-PKG_LIBS=$(SHLIB_OPENMP_CXXFLAGS) $(BLAS_LIBS) $(LAPACK_LIBS) -lpthread -lm
+PKG_LIBS=$(SHLIB_OPENMP_CXXFLAGS) ${LINALG} -lpthread -lm
 PKG_CXXFLAGS=`find ../inst/include -type d | sed s/^/-I/` $(SHLIB_OPENMP_CXXFLAGS) -w -msse2 -DUSE_BLAS_LIB -DAXPBY -DINT_64BITS -DARMA_64BIT_WORD -std=c++11

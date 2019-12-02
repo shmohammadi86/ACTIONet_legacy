@@ -127,7 +127,7 @@ construct.archetype.signature.profile <- function(sce, ACTIONet.out, reduction_s
     require(SingleCellExperiment)
     
     # eigengene x archetypes
-    reduced.archetype.profile = (t(sce@reducedDims[[reduction_slot]]) %*% ACTIONet.out$reconstruct.out$C_stacked)
+    reduced.archetype.profile = (t(reducedDims(sce)[[reduction_slot]]) %*% ACTIONet.out$reconstruct.out$C_stacked)
     
     X = rowData(sce)
     cnames = colnames(X)

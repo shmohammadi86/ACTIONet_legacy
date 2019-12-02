@@ -101,7 +101,7 @@ import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_
 		colnames(feature.counts) = sample_annotations[, 1]
 		
 		
-		sce@reducedDims[[feature.name]] = Matrix::t(feature.counts)
+		reducedDims(sce)[[feature.name]] = Matrix::t(feature.counts)
 	}
 	
     
