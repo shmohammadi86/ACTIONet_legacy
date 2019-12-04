@@ -1,5 +1,4 @@
-reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter = 5) {
-    require(scran)
+reduce.sce <- function(sce, norm.method = "default", reduced_dim = 50, max.iter = 5) {    
     require(ACTIONet)
     
     sce.norm = sce

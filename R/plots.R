@@ -306,7 +306,7 @@ plot.ACTIONet.feature.view <- function(ACTIONet.out, feature.enrichment.table, t
 
 }
 
-plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", title = "Gene view", label.text.size = 0.8) {
+plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", title = "", label.text.size = 0.8) {
     if( !('unification.out' %in% names(ACTIONet.out)) ) {
 		print('Error in plot.ACTIONet.gene.view: "unification.out" is not in ACTIONet.out. Please run unify.cell.states() first.')
 		return()
@@ -715,7 +715,7 @@ plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = 
 		if(scale.rows == T) {
 			Enrichment = Matrix::t(scale(Matrix::t(Enrichment)))
 		}
-	    ht_list = ht_list + Heatmap(Enrichment[row.perm, col.perms[[i]]], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))
+	    ht_list = ht_list + Heatmap(Enrichment[row.perm, col.perms[[i]]], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"))
 	}
 	
 	draw(ht_list)
@@ -865,8 +865,15 @@ plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap",
 	}
 		
 }
-plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete") {
+
+plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete", blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
     X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
+    
+	filtered.rows = grep(blacklist.pattern, rownames(X))
+	if(length(filtered.rows) > 0)
+		X = X[-filtered.rows, ]
+	
+
 	CC = cor(X)
 	CC[is.na(CC)] = 0
 	D = as.dist(1 - CC)
@@ -899,6 +906,7 @@ plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", 
 	# D = as.dist(1 - CC)
 	# row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 		
+
 	
 	Enrichment = Matrix::t(scale(Matrix::t(X[row.perm, ])))
 	colnames(Enrichment) = col.perm
@@ -911,4 +919,21 @@ plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", 
 		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = "Cell states", column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
 	}
 	
+}
+
+
+plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE, highlight = "connectivity") {
+	Ht = Matrix::t(ACTIONet.out$unification.out$H.core)
+
+	k1 = k2 = round(sqrt(ncol(Ht)))
+	if(k1*k2 < ncol(Ht)) {
+		k2 = k2+1
+	}
+
+	par(mfrow = c(k1, k2), mar = c(0, 0, 1, 0))
+	sapply(1:ncol(Ht), function(i) {
+		print(i)
+		h = Ht[, i]
+		plot.ACTIONet.gradient(ACTIONet.out, h, title = i, highlight = highlight, transparency.attr = transparency.attr, trans.z.threshold = trans.z.threshold, trans.fact= trans.fact, node.size = node.size, CPal = CPal, prune = prune, alpha_val = alpha_val, nonparameteric = nonparameteric)		
+	})
 }

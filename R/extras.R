@@ -675,14 +675,18 @@ compute.cell.connectivity <- function(ACTIONet.out, alpha_val = 0.85) {
 		
 		sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
 		
-		sub.cn = coreness(sub.ACTIONet)
-		pr = page_rank(sub.ACTIONet, personalized = sub.cn, damping = alpha_val)$vector
-		y.n = pr/sd(pr)
+		sub.cn = coreness(sub.ACTIONet)		
+		if(sum(sub.cn) == 0) {
+			locality[idx, i] = 0
+		} else {
+			pr = page_rank(sub.ACTIONet, personalized = sub.cn, damping = alpha_val)$vector
+			y.n = pr/sd(pr)
 
-		v = pmax(y.n, x.n[idx])
-		v[is.na(v)] = 0
-		
-		locality[idx, i] = v
+			v = pmax(y.n, x.n[idx])
+			v[is.na(v)] = 0
+			
+			locality[idx, i] = v
+		}
 	}
 	connectivity = Matrix::rowSums(locality)
 	return(connectivity)

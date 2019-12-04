@@ -252,6 +252,7 @@ geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, m
     
     idx = match(common.genes, rownames(DE.profile))
     DE.profile = DE.profile[idx, ]
+
     
     idx = match(common.genes, rownames(ind.mat))
     X = ind.mat[idx, ]
