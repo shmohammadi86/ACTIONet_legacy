@@ -81,3 +81,30 @@
 #' 
 #' @source \url{https://www.ncbi.nlm.nih.gov/pubmed/30726743}
 "Monaco2019"
+
+
+#' Enrichr functional pathways
+#' 
+#' @format:
+#'   A list of genesets
+#' 
+#' @source \url{https://amp.pharm.mssm.edu/Enrichr/}
+"EnrichrDB"
+
+
+#' Collection of Disease-associated genesets
+#' 
+#' @format:
+#'   A list of genesets
+#' 
+#' @source \url{https://amp.pharm.mssm.edu/Enrichr/}
+"DiseaseDB"
+
+
+#' Collection of TF-TG assocations
+#' 
+#' @format:
+#'   A list of TF-TG associations
+#' 
+#' @source \url{https://amp.pharm.mssm.edu/chea3/}
+"ChEA3plusDB"

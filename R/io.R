@@ -1,4 +1,4 @@
-import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations = NULL, prefilter = TRUE, min.cells.per.gene.frac = 0.001, min.genes.per.cell = 300) {
+import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations = NULL, prefilter = FALSE, min.cell.frac.per.gene = 0.001, min.genes.per.cell = 300) {
 	if(!is.sparseMatrix(counts)) {
 		counts = as(counts, "sparseMatrix")
 	}	
@@ -11,7 +11,7 @@ import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations 
 	}
 	
     if (prefilter) {
-		min.cells.per.gene = round(ncol(sce) * minn.cells.per.gene.frac)
+		min.cells.per.gene = round(ncol(sce) * min.cell.frac.per.gene)
         cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         
@@ -22,7 +22,7 @@ import.sce.from.count.matrix <- function(counts, gene.names, sample_annotations 
     return(sce)
 }
 
-import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
+import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = FALSE, min.cell.frac.per.gene = 0.001, min.genes.per.cell = 300) {
     require(Matrix)
     require(SingleCellExperiment)
     
@@ -39,6 +39,7 @@ import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = 
     sce <- SingleCellExperiment(assays = list(counts = counts))
     
     if (prefilter) {
+		min.cells.per.gene = round(ncol(sce) * min.cell.frac.per.gene)
         cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         
@@ -50,7 +51,7 @@ import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = 
 }
 
 import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_annotations = "features.tsv.gz", sample_annotations = "barcodes.tsv.gz", 
-    sep = "\t", header = FALSE, prefilter = TRUE, min.cells.per.gene = 10, min.genes.per.cell = 300) {
+    sep = "\t", header = FALSE, prefilter = FALSE, min.cell.frac.per.gene = 0.001, min.genes.per.cell = 300) {
     require(Matrix)
     require(scran)
     
@@ -107,6 +108,7 @@ import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_
 	
     
     if (prefilter) {
+		min.cells.per.gene = round(ncol(sce) * min.cell.frac.per.gene)
         cell.counts = Matrix::rowSums(SummarizedExperiment::assays(sce)$counts > 0)
         sce = sce[cell.counts > min.cells.per.gene, ]
         

@@ -210,6 +210,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// computeNearestDist_edgeList
+List computeNearestDist_edgeList(mat& H_stacked, double kNN, int thread_no);
+RcppExport SEXP _ACTIONet_computeNearestDist_edgeList(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
+    Rcpp::traits::input_parameter< double >::type kNN(kNNSEXP);
+    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeNearestDist_edgeList(H_stacked, kNN, thread_no));
+    return rcpp_result_gen;
+END_RCPP
+}
+// computeFullDist
+mat computeFullDist(mat& H_stacked, int thread_no, int verbose);
+RcppExport SEXP _ACTIONet_computeFullDist(SEXP H_stackedSEXP, SEXP thread_noSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
+    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
+    Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeFullDist(H_stacked, thread_no, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_reduceGeneExpression", (DL_FUNC) &_ACTIONet_reduceGeneExpression, 4},
@@ -227,6 +253,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_assessFeatureSets", (DL_FUNC) &_ACTIONet_assessFeatureSets, 3},
     {"_ACTIONet_phenotypeEnrichment", (DL_FUNC) &_ACTIONet_phenotypeEnrichment, 3},
     {"_ACTIONet_update_layout_2D", (DL_FUNC) &_ACTIONet_update_layout_2D, 4},
+    {"_ACTIONet_computeNearestDist_edgeList", (DL_FUNC) &_ACTIONet_computeNearestDist_edgeList, 3},
+    {"_ACTIONet_computeFullDist", (DL_FUNC) &_ACTIONet_computeFullDist, 3},
     {NULL, NULL, 0}
 };
 

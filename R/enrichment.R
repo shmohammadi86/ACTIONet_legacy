@@ -746,7 +746,7 @@ find.archtype.binary.phenotype.associated.genes <- function(ACTIONet.out, sce, p
 }
 
 
-assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
+assess.TF.activities.Viper <- function(ACTIONet.out, inRegulon, core = T) {
     require(viper)
 	if(core == T) {
 		if (("unification.out" %in% names(ACTIONet.out))) {
@@ -773,3 +773,36 @@ assess.TF.activities <- function(ACTIONet.out, inRegulon, core = T) {
     return(TF_activities)
 }
 
+
+assess.archetypes.TF.activities <- function(ACTIONet.out) {
+	if(!exists("ChEA3plusDB")) {
+		data("ChEA3plusDB")
+	}
+	Enrichments = lapply(ChEA3plusDB, function(gs) enrichment = geneset.enrichment.archetype(ACTIONet.out, gs, min.size = 0, max.size = Inf))
+	TF.scores = sapply(1:ncol(Enrichments[[1]]), function(j) {
+		X = t(sapply(Enrichments, function(enrichment) as.numeric(enrichment[, j])))
+		meta.logPval = combine.logPvals(X)
+		return(meta.logPval)
+
+	})
+	rownames(TF.scores) = names(ChEA3plusDB$Enrichr)
+	return(TF.scores)
+}
+
+assess.annotations.TF.activities <- function(ACTIONet.out, annotation.name) {
+	if(!exists("ChEA3plusDB")) {
+		data("ChEA3plusDB")
+	}
+	
+	Enrichments = lapply(ChEA3plusDB, function(gs) enrichment = geneset.enrichment.annotations(ACTIONet.out, annotation.name, gs, min.size = 0, max.size = Inf))
+	TF.scores = sapply(1:ncol(Enrichments[[1]]), function(j) {
+		X = t(sapply(Enrichments, function(enrichment) as.numeric(enrichment[, j])))
+		meta.logPval = combine.logPvals(X)
+		return(meta.logPval)
+
+	})
+	rownames(TF.scores) = names(ChEA3plusDB$Enrichr)
+	colnames(TF.scores) = colnames(Enrichments[[1]])
+	
+	return(TF.scores)
+}

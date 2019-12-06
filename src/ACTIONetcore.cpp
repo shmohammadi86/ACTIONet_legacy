@@ -154,3 +154,24 @@ mat update_layout_2D(mat coors,
 
     return updated_coors;
 }
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List computeNearestDist_edgeList(mat &H_stacked, double kNN, int thread_no = 8) {  	
+    field<mat> NN = ACTIONetcore::computeNearestDist_edgeList(H_stacked, kNN, thread_no);
+    
+	List out_list;		
+	out_list["idx"] = NN(0);
+	out_list["dist"] = NN(1);
+
+    return out_list;
+}
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat computeFullDist(mat &H_stacked, int thread_no = 8, int verbose = 1) {  	
+    mat D = ACTIONetcore::computeFullDist(H_stacked, thread_no, verbose);
+    
+    return D;
+}
+

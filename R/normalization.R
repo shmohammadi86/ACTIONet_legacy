@@ -91,22 +91,18 @@ normalize.sce <- function(sce, norm.method) {
     return(sce.norm)
 }
 
-normalize.sce.by.labels <- function(sce.in, Labels, norm.method = "default") {
-    IDX = split(1:ncol(sce.in), Labels)
-    sub.sces = sapply(IDX, function(idx) {
-        sub.sce = normalize.sce(sce.in[, idx], norm.method)
-        metadata(sub.sce) = list()
-        return(sub.sce)
-    })
-    
-    merged.sce = do.call(cbind, sub.sces)
-    perm = match(colnames(sce.in), colnames(merged.sce))
-    final.sce = merged.sce[, perm]
-    
-    metadata(final.sce)$normalization.method = sprintf("%s_per_class", norm.method)
-    metadata(final.sce)$normalization.factor = Labels
+renormalize.sce <- function(ACTIONet.out, sce) {
+	library(scater)
+
+	system.time({sce <- computeSumFactors(sce, clusters=ACTIONet.out$unification.out$assignments.core)})
+	summary(sizeFactors(sce))
+
+	final.sce = normalize(sce)
+	
+    metadata(final.sce)$normalization.method = 'renormalized'
+    metadata(final.sce)$sizeFactors = sizeFactors(final.sce)
     metadata(final.sce)$normalization.time = Sys.time()
-    
-    return(final.sce)
+	
+	return(final.sce)
 }
 

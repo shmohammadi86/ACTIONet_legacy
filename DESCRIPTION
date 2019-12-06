@@ -15,11 +15,10 @@ Description:
 License: GPL (>= 2)
 URL: http://compbio.mit.edu/ACTIONet/
 Depends: Rcpp, RcppArmadillo, NetLibR, Matrix, igraph, SingleCellExperiment, SummarizedExperiment, wordcloud,plotly,threejs,viridis,colorspace,scales,RColorBrewer
-Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, ComplexHeatmap, 
-Suggests:scran
+Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, ComplexHeatmap
+Suggests: scran
 LinkingTo: Rcpp,RcppArmadillo
 Remotes: immunogenomics/harmony,mbojan/alluvial,shmohammadi86/NetLibR
 Encoding: UTF-8
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.1
 VignetteBuilder: knitr
-

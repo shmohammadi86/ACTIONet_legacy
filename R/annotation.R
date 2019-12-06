@@ -234,14 +234,12 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
         is.signed = signed.count > 0
         
         if (!is.signed) {
-            df = data.frame(Gene = toupper(genes), Direction = +1, Celltype = celltype)
+            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype)
         } else {
-            # pos.genes = toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('\\+$', gene))]))) neg.genes =
-            # toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('-$', gene))])))
             
-            pos.genes = toupper(as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("+"), ""))))
-            neg.genes = toupper(as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("-"), ""))))
             
             df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
@@ -260,7 +258,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     print("Computing significance scores")
     set.seed(0)
     Z = sapply(IDX, function(idx) {
-        markers = toupper(as.character(markers.table$Gene[idx]))
+        markers = (as.character(markers.table$Gene[idx]))
         directions = markers.table$Direction[idx]
         mask = markers %in% colnames(archetype.panel)
         
@@ -330,14 +328,12 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
         is.signed = signed.count > 0
         
         if (!is.signed) {
-            df = data.frame(Gene = toupper(genes), Direction = +1, Celltype = celltype)
+            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype)
         } else {
-            # pos.genes = toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('\\+$', gene))]))) neg.genes =
-            # toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('-$', gene))])))
             
-            pos.genes = toupper(as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("+"), ""))))
-            neg.genes = toupper(as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("-"), ""))))
             
             df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
@@ -357,7 +353,7 @@ annotate.clusters.using.markers <- function(ACTIONet.out, sce, annotation.cluste
     print("Computing significance scores")
     set.seed(0)
     Z = sapply(IDX, function(idx) {
-        markers = toupper(as.character(markers.table$Gene[idx]))
+        markers = (as.character(markers.table$Gene[idx]))
         directions = markers.table$Direction[idx]
         mask = markers %in% colnames(expression.panel)
         
@@ -407,7 +403,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
     require(Matrix)
     require(stringr)
     
-    rownames(sce) = toupper(rownames(sce))
+    rownames(sce) = (rownames(sce))
     
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
@@ -424,14 +420,12 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
         is.signed = signed.count > 0
         
         if (!is.signed) {
-            df = data.frame(Gene = toupper(genes), Direction = +1, Celltype = celltype)
+            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype)
         } else {
-            # pos.genes = toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('\\+$', gene))]))) neg.genes =
-            # toupper(as.character(sapply(genes[sapply(genes, function(gene) grepl('-$', gene))])))
             
-            pos.genes = toupper(as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("+"), ""))))
-            neg.genes = toupper(as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
                 stringr::fixed("-"), ""))))
             
             df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
@@ -455,7 +449,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
         print("Using archImpute for imptation of marker genes")
         imputed.marker.expression = t(ACTIONet.out$signature.profile[rows, ACTIONet.out$core.out$core.archs] %*% ACTIONet.out$core.out$H)
     }
-    colnames(imputed.marker.expression) = toupper(colnames(imputed.marker.expression))
+    colnames(imputed.marker.expression) = (colnames(imputed.marker.expression))
     
     
     IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
@@ -463,7 +457,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
     print("Computing significance scores")
     set.seed(0)
     Z = sapply(IDX, function(idx) {
-        markers = toupper(as.character(markers.table$Gene[idx]))
+        markers = (as.character(markers.table$Gene[idx]))
         directions = markers.table$Direction[idx]
         mask = markers %in% colnames(imputed.marker.expression)
         

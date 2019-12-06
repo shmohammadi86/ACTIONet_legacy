@@ -635,7 +635,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
 	
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0.9, export_path = NA, prune = FALSE) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0.9, export_path = NA, prune = FALSE, highlight = NULL) {
     require(igraph)
     
     
@@ -661,7 +661,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
         
         x = imputed.marker.expression[, gene]
 
-		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = CPal, title = gene, prune = prune, alpha_val = alpha_val)
+		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = CPal, title = gene, prune = prune, alpha_val = alpha_val, highlight = highlight)
     })
 }
 
@@ -757,47 +757,52 @@ plot.annotated.heatmap <-function(W, row.annotation, column.annotation, plot_tit
 }
 
 
-plot.annotations.selected.genes <- function(ACTIONet.out, annotation.name, genes, type = "heatmap", seriation.method = "OLO") {
+plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, markers, type = "heatmap", seriation.method = "OLO") {
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" not found\n', annotation.name)
 		return()
 	}		
-    if (is.null(ACTIONet.out$annotations[[cl.idx]]$DE.profile)) {
-		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" does not DE.profile. Please run compute.annotations.feature.specificity() first.\n', annotation.name)
-		return()
-    }
-    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
- 
-	genes = intersect(rownames(X), genes)
-
-	X.sub = X[genes, ]
 	
+	Labels = ACTIONet.out$annotations[[cl.idx]]$Labels
+	UL = sort(unique(Labels))
+	Annot = names(Labels)[match(UL, Labels)]
+	Labels = factor(Labels, levels = UL, labels = Annot)
+
+	IDX = split(1:length(Labels), Labels)
+
+
+	A = assays(sce)$logcounts
+	Avg.profile = sapply(IDX, function(idx) Matrix::rowMeans(A[markers, idx]))
+
+
 	set.seed(0)
-	CC = cor(as.matrix(Matrix::t(X.sub)))
+	CC = cor(as.matrix(Matrix::t(Avg.profile)))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
 	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 	
 	set.seed(0)
-	CC = cor(as.matrix(X.sub))
+	CC = cor(as.matrix(Avg.profile))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
 	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 	
 	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
 	
-	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+	Enrichment = Matrix::t(scale(Matrix::t(Avg.profile)))
 
 	if(type == "corrplot") {
+		library(corrplot)
 		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
 	} else if(type == "heatmap") {
-		Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
+		library(ComplexHeatmap)
+		ComplexHeatmap::Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
 	}	
 		
 }
 
-plot.annotations.top.genes <- function(ACTIONet.out, annotation.name, gene.counts, type = "heatmap", seriation.method = "OLO") {
+plot.annotations.top.genes <- function(ACTIONet.out, sce, annotation.name, top.genes, type = "heatmap", seriation.method = "OLO") {
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" not found\n', annotation.name)
@@ -808,30 +813,10 @@ plot.annotations.top.genes <- function(ACTIONet.out, annotation.name, gene.count
 		return()
     }
     X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
- 
-	CC = cor(X)
-	CC[is.na(CC)] = 0
-	D = as.dist(1 - CC)
-	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-	
-	X = X[, col.perm]
-	
-	IDX = apply(X, 2, function(x) {
-		order(x, decreasing = T)[1:gene.counts]
-	})
-	
-	rows = as.numeric(IDX)
-	X.sub = X[rows, ]
-	
-	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
-	
-	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
-	
-	if(type == "corrplot") {
-		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
-	} else if(type == "heatmap") {
-		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
-	}	
+	rows = sort(unique(as.numeric(apply(X, 2, function(x) order(x, decreasing=T)[1:top.genes]))))
+	markers = rownames(X)[rows]
+
+	plot.annotations.selected.genes(ACTIONet.out, sce = sce, annotation.name = annotation.name, markers = markers, type = type, seriation.method = seriation.method)
 }
 
 plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap", seriation.method = "OLO") {
