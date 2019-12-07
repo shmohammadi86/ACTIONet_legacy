@@ -1,4 +1,4 @@
-run.SCINET.archetype <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.archetype <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8, compute.topo.specificity = T) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -49,20 +49,39 @@ run.SCINET.archetype <- function(ACTIONet.out, G=NULL, core = T, min.edge.weight
 	cellstate.nets = SCINET::construct_cell_networks(net = G, gene_activities = gene.activity.scores, thread_no = thread_no)
 	cellstate.nets.list = as.list(cellstate.nets)
 	
-	print("Computing topological specificity of genes");
+	print("Prunning nodes/edges ... ");
 	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
-		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
-		V(G)$name = common.genes
-		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
-		z.scores = topo.spec(G, spec.sample_no)
-		V(G)$specificity = 1 / (1 + exp(-z.scores))
-		G = delete_vertices(G, V(G)[strength(G) == 0])		
+		G.Adj@x[G.Adj@x < min.edge.weight] = 0
+		filter.mask = Matrix::colSums(G.Adj) == 0
+		G = igraph::graph_from_adjacency_matrix(G.Adj[!filter.mask, !filter.mask], mode = "undirected", weighted = T)
+		V(G)$name = common.genes[!filter.mask]
+		if(compute.topo.specificity == TRUE) {
+			z.scores = topo.spec(G, spec.sample_no)
+			V(G)$specificity = 1 / (1 + exp(-z.scores))
+		}
+		
+		# G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
+		# V(G)$name = common.genes
+		# G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
+		# if(compute.topo.specificity == TRUE) {
+		# 	z.scores = topo.spec(G, spec.sample_no)
+		# 	V(G)$specificity = 1 / (1 + exp(-z.scores))
+		# }
+		# G = delete_vertices(G, V(G)[strength(G) == 0])				
+		
+		return(G)
 	})
+
+	if(is.null(colnames(DE.profile))) {		
+		names(cellstate.nets.list.igraph) = 1:ncol(DE.profile)
+	} else {
+		names(cellstate.nets.list.igraph) = colnames(DE.profile)
+	}
 	
 	return(cellstate.nets.list.igraph)
 }
 
-run.SCINET.annotation <- function(ACTIONet.out, annotation_name, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.annotation <- function(ACTIONet.out, annotation_name, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8, compute.topo.specificity = T) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -105,23 +124,39 @@ run.SCINET.annotation <- function(ACTIONet.out, annotation_name, G=NULL, min.edg
 	cellstate.nets = SCINET::construct_cell_networks(net = G, gene_activities = gene.activity.scores, thread_no = thread_no)
 	cellstate.nets.list = as.list(cellstate.nets)
 	
-	print("Computing topological specificity of genes");
+	print("Prunning nodes/edges ... ");
 	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
-		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
-		V(G)$name = common.genes
-		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
-		z.scores = topo.spec(G, spec.sample_no)
-		V(G)$specificity = 1 / (1 + exp(-z.scores))
-		G = delete_vertices(G, V(G)[strength(G) == 0])		
+		G.Adj@x[G.Adj@x < min.edge.weight] = 0
+		filter.mask = Matrix::colSums(G.Adj) == 0
+		G = igraph::graph_from_adjacency_matrix(G.Adj[!filter.mask, !filter.mask], mode = "undirected", weighted = T)
+		V(G)$name = common.genes[!filter.mask]
+		if(compute.topo.specificity == TRUE) {
+			z.scores = topo.spec(G, spec.sample_no)
+			V(G)$specificity = 1 / (1 + exp(-z.scores))
+		}
+		
+		# G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
+		# V(G)$name = common.genes
+		# G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
+		# if(compute.topo.specificity == TRUE) {
+		# 	z.scores = topo.spec(G, spec.sample_no)
+		# 	V(G)$specificity = 1 / (1 + exp(-z.scores))
+		# }
+		# G = delete_vertices(G, V(G)[strength(G) == 0])
+						
+		return(G)
 	})
 
-	names(cellstate.nets.list.igraph) = colnames(ACTIONet.out$annotations[[cl.idx]]$DE.profile)
-	
+	if(is.null(colnames(DE.profile))) {		
+		names(cellstate.nets.list.igraph) = 1:ncol(DE.profile)
+	} else {
+		names(cellstate.nets.list.igraph) = colnames(DE.profile)
+	}
 	return(cellstate.nets.list.igraph)
 }
 
 
-run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8) {
+run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2, spec.sample_no = 1000, thread_no = 8, compute.topo.specificity = T) {
 	require(SCINET)
 	
 	print("Preprocessing the baseline interactome");
@@ -158,17 +193,32 @@ run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2,
 	cellstate.nets = SCINET::construct_cell_networks(net = G, gene_activities = gene.activity.scores, thread_no = thread_no)
 	cellstate.nets.list = as.list(cellstate.nets)
 	
-	print("Computing topological specificity of genes");
+	print("Prunning nodes/edges ... ");
 	cellstate.nets.list.igraph = lapply(cellstate.nets.list, function(G.Adj) {
-		G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
-		V(G)$name = common.genes
-		G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
-		z.scores = topo.spec(G, spec.sample_no)
-		V(G)$specificity = 1 / (1 + exp(-z.scores))
-		G = delete_vertices(G, V(G)[strength(G) == 0])				
+		G.Adj@x[G.Adj@x < min.edge.weight] = 0
+		filter.mask = Matrix::colSums(G.Adj) == 0
+		G = igraph::graph_from_adjacency_matrix(G.Adj[!filter.mask, !filter.mask], mode = "undirected", weighted = T)
+		V(G)$name = common.genes[!filter.mask]
+		if(compute.topo.specificity == TRUE) {
+			z.scores = topo.spec(G, spec.sample_no)
+			V(G)$specificity = 1 / (1 + exp(-z.scores))
+		}
+		# G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
+		# V(G)$name = common.genes
+		# G = delete_edges(G, E(G)[E(G)$weight < min.edge.weight])
+		# if(compute.topo.specificity == TRUE) {
+		# 	z.scores = topo.spec(G, spec.sample_no)
+		# 	V(G)$specificity = 1 / (1 + exp(-z.scores))
+		# }
+		# G = delete_vertices(G, V(G)[strength(G) == 0])				
+		return(G)
 	})
 	
-	names(cellstate.nets.list.igraph) = colnames(DE.profile)
+	if(is.null(colnames(DE.profile))) {		
+		names(cellstate.nets.list.igraph) = 1:ncol(DE.profile)
+	} else {
+		names(cellstate.nets.list.igraph) = colnames(DE.profile)
+	}
 
 	return(cellstate.nets.list.igraph)
 }

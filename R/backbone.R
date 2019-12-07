@@ -393,3 +393,136 @@ plot.ACTIONet.cell.state.view <- function(ACTIONet.out, sce, archetype.labels = 
 }
 
 
+get.backbone <- function(ACTIONet.out, core = T) {
+	if(core == T) {
+		Z = scale(Matrix::t(ACTIONet.out$unification.out$H.core), center = T, scale = T)
+	} else {
+		Z = scale(Matrix::t(ACTIONet.out$reconstruct.out$H_stacked), center = T, scale = T)
+	}
+	A = Matrix::t(ACTIONet.out$build.out$ACTIONet_asym)
+	n = ncol(A)
+	pred = A %*% Z
+	obs = Z
+	backbone <- as.matrix((Matrix::t(obs) %*% pred))/n
+	
+	return(backbone)
+}
+
+
+
+
+plot.ACTIONet.cellstates <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
+	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = NULL) {
+    
+    node.size = node.size * 0.5
+    
+    if (is.igraph(ACTIONet.out)) 
+        ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
+    
+    coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
+
+	if(!is.null(highlight)) {
+		transparency.attr = V(ACTIONet.out$ACTIONet)$connectivity
+	}
+		
+    vCol = "#eeeeee"
+    Annot = NULL
+
+    if (!is.null(transparency.attr)) {
+        z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
+        beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
+        beta[z > trans.z.threshold] = 1
+        beta = beta^trans.fact
+        
+        vCol.border = scales::alpha(colorspace::darken(vCol, 0.15), beta)
+        vCol = scales::alpha(vCol, beta)
+    } else {
+        vCol.border = colorspace::darken(vCol, 0.15)
+    }
+
+
+	x = coors[, 1]
+	y = coors[, 2]
+	x.min = min(x)
+	x.max = max(x)
+	y.min = min(y)
+	y.max = max(y)
+	x.min = x.min - (x.max-x.min)/20
+	x.max = x.max + (x.max-x.min)/20
+	y.min = y.min - (y.max-y.min)/20
+	y.max = y.max + (y.max-y.min)/20
+	XL = c(x.min, x.max)
+	YL = c(y.min, y.max)
+
+
+    graphics::plot(coors[, c(1, 2)], pch = 21, cex = node.size, bg = vCol, col = vCol.border, axes = F, xlab = "", ylab = "", main = title, xlim = XL, ylim = YL) 
+
+	
+	M = as(ACTIONet.out$unification.out$C.core, 'sparseMatrix')
+	cs = Matrix::colSums(M)
+	M = scale(M, center = FALSE, scale = cs)
+	
+#     cell.Lab = grDevices::convertColor(color = t(col2rgb(vCol)/256), from = "sRGB", to = "Lab")	    
+#     core.Lab = t(t(cell.Lab) %*% M)
+#     core.colors = rgb(grDevices::convertColor(color = core.Lab, from = "Lab", to = "sRGB"))
+# 	core.colors = colorspace::lighten(core.colors, 0.1)
+
+	core.colors = ACTIONet.out$unification.out$Pal
+	core.coors = t(t(coors) %*% M)		
+
+    xx = core.coors[, 1]
+    yy = core.coors[, 2]
+    
+    Moran.I = get.backbone (ACTIONet.out, core = T)
+	
+	ii = Moran.I@i+1
+	jj = Moran.I@j + 1
+	w = Moran.I@x
+	w = w / max(w)
+	for(k in 1:length(Moran.I@x)) {
+		# lines(c(xx[ii[k]], yy[ii[k]]), c(xx[jj[k]], yy[jj[k]]), col = '#333333')
+		lines(c(xx[ii[k]], xx[jj[k]]), c(yy[ii[k]], yy[jj[k]]), col = colorspace::darken('#ffffff', w[k]))
+		
+	}
+	par(new=TRUE)
+
+    graphics::plot(core.coors, pch = 21, add = T, cex = 2*node.size, bg = core.colors, col = "#aaaaaa", axes = FALSE, xlab = "", ylab = "", xlim = XL, ylim = YL)
+    
+    layout.labels(x = xx, y = yy-strheight("A"), labels = 1:ncol(M), col = colorspace::darken(core.colors, 0.5), bg = "#eeeeee", r = text.halo.width, cex = label.text.size)
+}
+
+
+# ACTIONet.Moran.I <- function (x, w) 
+# {
+# 	A = ACTIONet.out$build.out$ACTIONet
+# 	n = ncol(A)
+# 	
+#     mean.x <- mean(x)
+#     Zi <- x - mean.x
+#     diag(w) <- 0
+#     RS <- apply(w, 1, sum)
+#     RS[RS == 0] <- 1
+#     w <- w/RS
+#     moran.nom.x <- sum(w * Zi %*% t(Zi))
+#     moran.denom.x <- sum(Zi^2)
+#     moran <- (n/sum(w)) * (moran.nom.x/moran.denom.x)
+#     E.I <- (-1)/(n - 1)
+#     S0 <- sum(w)
+#     S1 <- (1/2) * sum((w + t(w))^2)
+#     S2 <- sum((apply(w, 1, sum) + apply(w, 2, sum))^2)
+#     b2 <- (sum((x - mean.x)^4)/n)/((sum((x - mean.x)^2)/n)^2)
+#     Var.I.resampling <- (((n^2) * S1 - n * S2 + 3 * (S0^2))/(((n^2) - 
+#         1) * (S0^2))) - (E.I^2)
+#     Var.I.randomization <- (n * ((n^2 - 3 * n + 3) * S1 - n * 
+#         S2 + 3 * S0^2))/((n - 1) * (n - 2) * (n - 3) * S0^2) - 
+#         (b2 * ((n^2 - n) * S1 - 2 * n * S2 + 6 * S0^2))/((n - 
+#             1) * (n - 2) * (n - 3) * S0^2) - (E.I^2)
+#     Z.I.resampling <- (moran - E.I)/sqrt(Var.I.resampling)
+#     Z.I.randomization <- (moran - E.I)/sqrt(Var.I.randomization)
+#     pv.resampling <- 2 * pnorm(-abs(Z.I.resampling))
+#     pv.randomization <- 2 * pnorm(-abs(Z.I.randomization))
+#     Results <- list(Morans.I = moran, Expected.I = E.I, z.resampling = Z.I.resampling, 
+#         p.value.resampling = pv.resampling, z.randomization = Z.I.randomization, 
+#         p.value.randomization = pv.randomization)
+# }

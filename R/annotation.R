@@ -1,4 +1,4 @@
-add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name = NULL, highlight = T) {	
+add.cell.annotations <- function(ACTIONet.out, cell.annotations, annotation.name = NULL, highlight = F) {	
 	if(is.null(annotation.name)) {
 		print("Error: You need to provide a name for the annotation")
 		return(ACTIONet.out)
@@ -70,7 +70,7 @@ extract.all.annotations <- function(ACTIONet.out) {
 
 
 
-annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, rand_perm_no = 1000, core = T) {
+annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, core = T) {
     if(core == T) {
 		profile = ACTIONet.out$unification.out$H.core		
 	} else {
@@ -92,6 +92,7 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, ran
 
     Annot = names(Labels)[match(sort(unique(Labels)), Labels)]
 	
+	# Using t-statistics
     Enrichment.Z = sapply(Annot, function(label) {
         mask = names(Labels) == label
         class.profile = profile[, mask]
@@ -118,8 +119,9 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, ran
 
     
     archetypeLabels = Annot[apply(Enrichment.Z, 1, which.max)]
+    Labels.confidence = apply(Enrichment.Z, 1, max)
     
-    out.list = list(Labels = archetypeLabels, Enrichment = Enrichment.Z)
+    out.list = list(Labels = archetypeLabels, Labels.confidence = Labels.confidence, Enrichment = Enrichment.Z)
     
     return(out.list)
 }
@@ -197,7 +199,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     require(stringr)
     
 	if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
-		marker.genes = sapply(arker.genes, function(x) rownames(arker.genes)[x > 0])
+		marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
 	}
 	
 	if(core == T) {
@@ -221,7 +223,7 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
 	    
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
-        GS.names = sapply(1:length(GS), function(i) sprintf("Celltype %s", i))
+        GS.names = sapply(1:length(GS.names), function(i) sprintf("Celltype %s", i))
     }
     
     markers.table = do.call(rbind, lapply(names(marker.genes), function(celltype) {
@@ -292,6 +294,96 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     rownames(Z) = rownames(archetype.panel)
     
     out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
+    
+    return(out.list)
+}
+
+
+annotate.profile.using.markers <- function(profile, marker.genes, rand.sample.no = 1000, core = T) {
+    require(ACTIONet)
+    require(igraph)
+    require(Matrix)
+    require(stringr)
+    
+	if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
+		marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
+	}
+	    
+    GS.names = names(marker.genes)
+    if (is.null(GS.names)) {
+        GS.names = sapply(1:length(GS.names), function(i) sprintf("Celltype %s", i))
+    }
+    
+    profile = Matrix::t(profile)
+    
+    markers.table = do.call(rbind, lapply(names(marker.genes), function(celltype) {
+        genes = marker.genes[[celltype]]
+        if (length(genes) == 0) 
+            return(data.frame())
+        
+        
+        signed.count = sum(sapply(genes, function(gene) grepl("\\+$|-$", gene)))
+        is.signed = signed.count > 0
+        
+        if (!is.signed) {
+            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype)
+        } else {
+            
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+                stringr::fixed("+"), ""))))
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+                stringr::fixed("-"), ""))))
+            
+            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
+                Celltype = celltype)
+        }
+    }))
+    markers.table = markers.table[markers.table$Gene %in% colnames(profile), ]
+    
+    if (dim(markers.table)[1] == 0) {
+        print("No markers are left")
+        return()
+    }    
+               
+    IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
+    
+    print("Computing significance scores")
+    set.seed(0)
+    Z = sapply(IDX, function(idx) {
+        markers = (as.character(markers.table$Gene[idx]))
+        directions = markers.table$Direction[idx]
+        mask = markers %in% colnames(profile)
+        
+        A = as.matrix(profile[, markers[mask]])
+        sgn = as.numeric(directions[mask])
+        stat = A %*% sgn
+        
+        rand.stats = sapply(1:rand.sample.no, function(i) {
+            rand.samples = sample.int(dim(profile)[2], sum(mask))
+            rand.A = as.matrix(profile[, rand.samples])
+            rand.stat = rand.A %*% sgn
+        })
+        
+        cell.zscores = as.numeric((stat - apply(rand.stats, 1, mean))/apply(rand.stats, 1, sd))
+        
+        return(cell.zscores)
+    })
+    
+    Z[is.na(Z)] = 0
+    Labels = colnames(Z)[apply(Z, 1, which.max)]
+    
+    #L = names(marker.genes)
+    #L.levels = L[L %in% Labels]
+    #Labels = match(L, L.levels)
+    #names(Labels) = L.levels
+    #Labels = factor(Labels, levels = L)
+    Labels.conf = apply(Z, 1, max)
+    
+    names(Labels) = rownames(profile)
+    names(Labels.conf) = rownames(profile)
+    rownames(Z) = rownames(profile)
+    
+    out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, profile = profile)
     
     return(out.list)
 }
@@ -505,26 +597,24 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 }
 
 
-map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale = T) {
+map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale) {
     if( core == T ) {
-		cell.scores.mat = ACTIONet.out$unification.out$H.core		
+		cell.scores.mat = Matrix::t(ACTIONet.out$unification.out$H.core)
 		
 	} else {
-		cell.scores.mat = ACTIONet.out$reconstruct.out$H_stacked
+		cell.scores.mat = Matrix::t(ACTIONet.out$reconstruct.out$H_stacked)
 	}    
-	cs = Matrix::colSums(cell.scores.mat)
-	cs[cs == 0] = 1
-	cell.scores.mat = t(scale(cell.scores.mat, center = F, scale = cs))
-
+	
     if (nrow(Enrichment) != ncol(cell.scores.mat)) {
 		print("Flipping enrichment matrix")
         Enrichment = t(Enrichment)
     }
 
-	if(scale == T)
+	if(scale == T) {
 		Enrichment.scaled = doubleNorm(Enrichment)
-	else
+	} else {
 		Enrichment.scaled = Enrichment
+	}
     
     cell.Enrichment.mat = cell.scores.mat %*% Enrichment.scaled
     colnames(cell.Enrichment.mat) = colnames(Enrichment)
@@ -563,21 +653,19 @@ annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, c
     return(ACTIONet.out)
 }
 
-annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, confidence.threshold = 3, post.update = T) {
+annotate.cells.from.archetypes.using.markers <- function(ACTIONet.out, marker.genes, annotation.name, rand.sample.no = 1000, confidence.threshold = 3) {
 	
-    arch.annot.out = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
-	confidence = apply(arch.annot.out$Enrichment, 1, max)
-	arch.labels = as.character(arch.annot.out$Labels)
-	arch.labels[confidence < confidence.threshold] = "?"
+	arch.annot.out = annotate.archetypes.using.markers(ACTIONet.out, marker.genes, rand.sample.no = rand.sample.no, core = T)
+	Enrichment = arch.annot.out$Enrichment
 
-	cell.annotations = arch.annot.out$Labels[ACTIONet.out$unification.out$assignments.core]
+	confidence = apply(Enrichment, 1, max)
+	archLabels = as.character(colnames(Enrichment)[apply(Enrichment, 1, which.max)])
+	archLabels[confidence < confidence.threshold] = "?"
 
+	cell.annotations = archLabels[ACTIONet.out$unification.out$assignments.core]
+	
 	ACTIONet.out = add.cell.annotations(ACTIONet.out, cell.annotations = cell.annotations, annotation.name = annotation.name, highlight = F)
-    
-    if(post.update == T) {
-		ACTIONet.out = correct.cell.annotations(ACTIONet.out, annotation.in = annotation.name, annotation.out = annotation.name, adjust.levels = TRUE, highlight = F)
-	}
-	
+
     return(ACTIONet.out)
 }
 
@@ -737,3 +825,21 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
 }
 
 
+suggest.markers <- function(ACTIONet.out, min.enrichment = 3) {
+	if(!exists("CellMarkerDB_human")) {
+		data("CellMarkerDB_human")
+	}
+	marker.genes = apply(CellMarkerDB_human, 2, function(x) rownames(CellMarkerDB_human)[x > 0])
+	
+	Enrichment = geneset.enrichment.archetype(ACTIONet.out, CellMarkerDB_human)
+
+	X = as(NetLibR::MWM_hungarian(Enrichment), 'dgTMatrix')
+	jj = X@j+1
+	matched.genesets = jj[order(X@i)]
+	mask = X@x[order(X@i)] >= min.enrichment
+	matched.genesets = matched.genesets[mask]
+	
+	selected.markersets = marker.genes[matched.genesets]
+	
+	return(selected.markersets)
+}

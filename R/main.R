@@ -694,7 +694,7 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 }
 
 
-correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3, adjust.levels = T, min.cells = 30, highlight = T) {
+correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out, LFR.threshold = 2, double.stochastic = FALSE, max_iter = 3, adjust.levels = T, min.cell.fraction = 0.001, highlight = F) {
  	Adj = get.adjacency(ACTIONet.out$ACTIONet, attr = "weight")
     A = as(Adj, "dgTMatrix")
     eps = 1e-16
@@ -713,16 +713,20 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	}
 	
 	# Prunes "trivial" annotations and merges them to larger ones
+	min.cells = round(min.cell.fraction*length(Labels))
 	counts = table(Labels)
 	Labels[Labels %in% as.numeric(names(counts)[counts < min.cells])] = NA
 	mask = is.na(Labels)
 	if(sum(mask) > 0) {
 		Labels[mask] = NA
-		tmp.label = paste(annotation.in, "pruned", sep = "_")
-		ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = tmp.label, adjust.levels = T, highligh = F)
-		Labels = preprocess.labels(ACTIONet.out, tmp.label)			
-		ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
+		ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = annotation.out, adjust.levels = T, highligh = F)
+		#Labels = preprocess.labels(ACTIONet.out, tmp.label)			
+		#ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
+	} else {
+		ACTIONet.out = add.cell.annotations(ACTIONet.out, Labels, annotation.name = annotation.out, highlight = F)
 	}
+	
+	Labels = ACTIONet.out$annotations[[annotation.out]]$Labels
 	
 	Annot = sort(unique(Labels))
 	idx = match(Annot, Labels)
@@ -765,8 +769,7 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	
 	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
 	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
-	eval(parse(text=cmd))    
+	cmd = ACTIONet.out$annotations[[annotation.out]] = res
 
 	if( highlight == T ) {
 		print("Adding annotation highlights")
@@ -774,4 +777,45 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	}
 		
 	return(ACTIONet.out)
+}
+
+
+classify.and.annotate.archetypes <- function(ACTIONet.out, sce, marker.genes = NULL, min.enrichment = 3, sce.data.attr = "logcounts", reduction_slot = "S_r") {
+	backbone = get.backbone(ACTIONet.out)
+	z = scale(diag(backbone))
+	clustered.mask = (z >= -1)
+	clustered.archetypes = which(clustered.mask)
+	
+	S_r = Matrix::t(reducedDims(sce)[[reduction_slot]])
+	
+	C.clustered = ACTIONet.out$unification.out$C.core[, clustered.mask]
+	W_r.clustered = S_r %*% C.clustered
+	H.clustered = runsimplexRegression(W_r.clustered, S_r)
+	
+	if(!is.null(marker.genes)) {
+		DE.clustered = assess.feature.specificity(sce, H.clustered, sce.data.attr = sce.data.attr)
+		annot.out = annotate.profile.using.markers(assays(DE.clustered)[["significance"]], marker.genes = marker.genes)
+									   
+		archEnrichment = Matrix::t(annot.out$Enrichment)
+		archEnrichment[archEnrichment < min.enrichment] = 0
+		X = doubleNorm(archEnrichment)
+		
+		cell.enrichment = Matrix::t(X %*% H.clustered)
+		cell.annotations = apply(cell.enrichment, 1, which.max)
+		names(cell.annotations) = names(marker.genes)[cell.annotations]
+		cell.annotations.confidence = apply(cell.enrichment, 1, max)
+		# plot.ACTIONet(ACTIONet.out, cell.annotations, highlight = "connectivity")
+	} else {
+		cell.annotations = cell.annotations.confidence = archEnrichment = NULL
+	}
+	
+	nonclustered.archetypes = which(!clustered.mask)
+	W.residual = cbind(scale(W.core[, clustered.mask]), orthoProject(W.core[, !clustered.mask], W.core[, clustered.mask]))
+	H.nonclustered = runsimplexRegression(W.residual, scale(S_r))
+	H.nonclustered = H.nonclustered[-c(1:sum(clustered.mask)), ]
+		
+
+	res = list(clustered.archetypes = clustered.archetypes, H.clustered = H.clustered, clustered.archetype.annotations = annot.out, cell.annotations = cell.annotations, cell.annotations.confidence = cell.annotations.confidence, nonclustered.archetypes, H.nonclustered = H.nonclustered)
+	
+	return(res)
 }

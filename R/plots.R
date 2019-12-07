@@ -790,14 +790,14 @@ plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, 
 	
 	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
 	
-	Enrichment = Matrix::t(scale(Matrix::t(Avg.profile)))
+	Enrichment = Matrix::t(scale(Matrix::t(Avg.profile[row.perm, col.perm])))
 
-	if(type == "corrplot") {
+	if(type == "dotplot") {
 		library(corrplot)
 		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
 	} else if(type == "heatmap") {
 		library(ComplexHeatmap)
-		ComplexHeatmap::Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
+		ComplexHeatmap::Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
 	}	
 		
 }
@@ -819,91 +819,47 @@ plot.annotations.top.genes <- function(ACTIONet.out, sce, annotation.name, top.g
 	plot.annotations.selected.genes(ACTIONet.out, sce = sce, annotation.name = annotation.name, markers = markers, type = type, seriation.method = seriation.method)
 }
 
-plot.archetype.selected.genes <- function(ACTIONet.out, genes, type = "heatmap", seriation.method = "OLO") {
+plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete", blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
     X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
- 
-	genes = intersect(rownames(X), genes)
+	filtered.rows = grep(blacklist.pattern, rownames(X))
+	if(length(filtered.rows) > 0)
+		X = X[-filtered.rows, ]
 
-	X.sub = X[genes, ]
-	colnames(X.sub) = paste("A", 1:ncol(X.sub), sep = "")
+	selected.rows = apply(X, 2, function(x) order(x, decreasing = T)[1:top.genes])
+	markers = rownames(X)[selected.rows]
 	
+	plot.archetype.selected.genes(ACTIONet.out= ACTIONet.out, selected.genes = markers, type = type, seriation.method = seriation.method)
+}
+
+plot.archetype.selected.genes <- function(ACTIONet.out, selected.genes, type = "heatmap", seriation.method = "OLO") {
+	selected.rows = match(selected.genes, rownames(ACTIONet.out$unification.out$cellstates.core))
+	
+	Avg.profile = ACTIONet.out$unification.out$cellstates.core[selected.rows, ]
+
+
 	set.seed(0)
-	CC = cor(as.matrix(Matrix::t(X.sub)))
+	CC = cor(as.matrix(Matrix::t(Avg.profile)))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
 	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 	
 	set.seed(0)
-	CC = cor(as.matrix(X.sub))
+	CC = cor(as.matrix(Avg.profile))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
 	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 	
 	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
 	
-	Enrichment = Matrix::t(scale(Matrix::t(X.sub)))
+	Enrichment = Matrix::t(scale(Matrix::t(Avg.profile[row.perm, col.perm])))
 
-	if(type == "corrplot") {
+	if(type == "dotplot") {
+		library(corrplot)
 		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
 	} else if(type == "heatmap") {
-		Heatmap(Enrichment[row.perm, col.perm], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = annotation.name, column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
-	}
-		
-}
-
-plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete", blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
-    X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
-    
-	filtered.rows = grep(blacklist.pattern, rownames(X))
-	if(length(filtered.rows) > 0)
-		X = X[-filtered.rows, ]
-	
-
-	CC = cor(X)
-	CC[is.na(CC)] = 0
-	D = as.dist(1 - CC)
-	col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-	X = X[, col.perm]
-
-	IDX = apply(X, 2, function(x) {
-		order(x, decreasing = T)[1:top.genes]
-	})
-	
-	rows = sort(unique(as.numeric(IDX)))
-	X = X[rows, ]
-	
-	
-	Z = t(scale(t(X)))
-	
-	idx = split(1:nrow(X), apply(Z, 1, which.max))
-	row.perm = unlist(lapply(1:length(idx), function(i) {
-		ii = idx[[i]]
-		if(length(ii) == 1) {
-			return(ii)
-		} else if(length(ii) > 1) {
-			v = Z[ii, i]
-			return(ii[order(v, decreasing = T)])
-		}
-	}))
-	
-	# CC = cor(Matrix::t(X))
-	# CC[is.na(CC)] = 0
-	# D = as.dist(1 - CC)
-	# row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-		
-
-	
-	Enrichment = Matrix::t(scale(Matrix::t(X[row.perm, ])))
-	colnames(Enrichment) = col.perm
-	
-	
-	if(type == "corrplot") {
-		corrplot::corrplot(Enrichment, is.corr = F, tl.col = "black", tl.cex = 0.7, cl.pos = "n")
-	} else if(type == "heatmap") {
-		gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
-		Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = "Cell states", column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))					   
-	}
-	
+		library(ComplexHeatmap)
+		ComplexHeatmap::Heatmap(Enrichment, name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = "", column_title = "Archeypes", column_names_gp = gpar(fontsize = 8, fontface="bold"), row_names_gp = gpar(fontsize = 8, fontface="bold"), column_title_gp = gpar(fontsize = 10, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"))		
+	}	
 }
 
 
@@ -922,3 +878,4 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, transparency.attr = 
 		plot.ACTIONet.gradient(ACTIONet.out, h, title = i, highlight = highlight, transparency.attr = transparency.attr, trans.z.threshold = trans.z.threshold, trans.fact= trans.fact, node.size = node.size, CPal = CPal, prune = prune, alpha_val = alpha_val, nonparameteric = nonparameteric)		
 	})
 }
+
