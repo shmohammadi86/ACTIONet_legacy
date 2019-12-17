@@ -533,7 +533,7 @@ preprocess.labels <- function(ACTIONet.out, labels) {
 		labels = L
 	} 
 	
-	if( is.null(names(labels)) ) {
+	if( is.null(names(labels)) | length(unique(names(labels))) > 100 )  {
 		names(labels) = as.character(labels)
 	}
 	

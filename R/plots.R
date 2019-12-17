@@ -63,8 +63,13 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 	} else {
 		Annot = names(labels)[match(sort(unique(labels)), labels)]
 		if(length(CPal) > 1) {
-			idx = labels[match(sort(unique(labels)), labels)]
-            Pal = CPal[idx]			
+			#idx = labels[match(sort(unique(labels)), labels)]
+            #Pal = CPal[idx]	
+            if(is.null(names(CPal))) {
+				Pal = CPal[1:length(Annot)]
+			} else {            
+				Pal = CPal[Annot]		
+			}
 		} else {
             Pal = ggpubr::get_palette(CPal, length(Annot))
 		}
@@ -75,7 +80,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 
 
     if (!is.null(transparency.attr)) {
-        z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
+        z = scale(transparency.attr) # (transparency.attr - median(transparency.attr))/mad(transparency.attr)
         beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
         beta[z > trans.z.threshold] = 1
         beta = beta^trans.fact
@@ -134,7 +139,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 			} 
 
             sub.coors = coors[idx, ]
-            anchor.coor = as.numeric(apply(sub.coors, 2, function(x) mean(x, trim = 0.5)))
+            anchor.coor = as.numeric(apply(sub.coors, 2, function(x) mean(x, trim = 0.80)))
 #             sub.coors.sq = sub.coors^2
 # 			norm.sq = Matrix::rowSums(sub.coors.sq)
 # 			anchor.idx = which.min(sapply(1:nrow(sub.coors.sq), function(i) { 
@@ -223,7 +228,7 @@ plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NU
 	}
 
     if (!is.null(transparency.attr)) {
-        z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
+        z = scale(transparency.attr) # (transparency.attr - median(transparency.attr))/mad(transparency.attr)
         beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
         beta[z > trans.z.threshold] = 1
         beta = beta^trans.fact
@@ -414,7 +419,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
 	}
 
     if (!is.null(transparency.attr)) {
-        z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
+        z = scale(transparency.attr) # (transparency.attr - median(transparency.attr))/mad(transparency.attr)
         beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
         beta[z > trans.z.threshold] = 1
         beta = beta^trans.fact
@@ -596,7 +601,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
     ## Create color gradient generator
     if (CPal %in% c("inferno", "magma", "viridis", "BlGrRd", "RdYlBu", "Spectral")) {
 		require(viridis)
-        Pal_grad = switch(CPal, inferno = inferno(500, alpha = 0.8), magma = magma(500, alpha = 0.8), viridis = viridis(500, alpha = 0.8), 
+        Pal_grad = switch(CPal, inferno = viridis::inferno(500, alpha = 0.8), magma = viridis::magma(500, alpha = 0.8), viridis = viridis::viridis(500, alpha = 0.8), 
             BlGrRd = colorRampPalette(c("blue", "grey", "red"))(500), Spectral = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, 
                 name = "Spectral"))))(100), RdYlBu = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100))
     } else {
@@ -619,13 +624,13 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
     }	
 
     if (!is.null(transparency.attr)) {
-        z = (transparency.attr - median(transparency.attr))/mad(transparency.attr)
+        z = scale(transparency.attr) # (transparency.attr - median(transparency.attr))/mad(transparency.attr)
         beta = 1/(1 + exp(-trans.fact * (z - trans.z.threshold)))
         beta[z > trans.z.threshold] = 1
         beta = beta^trans.fact
         
-        vCol.border = scales::alpha(colorspace::darken(vCol, 0.1), beta)
         vCol = scales::alpha(vCol, beta)
+        vCol.border = scales::alpha(colorspace::darken(vCol, 0.1), beta)
     } else {
         vCol.border = colorspace::darken(vCol, 0.1)
     }
@@ -635,7 +640,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
 	
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0.9, export_path = NA, prune = FALSE, highlight = NULL) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0, export_path = NA, prune = FALSE, highlight = NULL) {
     require(igraph)
     
     
@@ -643,13 +648,17 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
         names(marker.genes) = marker.genes
     }
     
-    gg = unique(unlist(marker.genes))
+    gg = intersect(unique(unlist(marker.genes)), rownames(sce))
     all.marker.genes = sort(intersect(gg, rownames(sce)))
     if(length(all.marker.genes) == 0) {
 		return()
 	}
     
-    imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = FALSE, alpha_val = alpha_val)
+    if(alpha_val > 0)
+		imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = FALSE, alpha_val = alpha_val)
+	else {
+		imputed.marker.expression = Matrix::t(assays(sce)[["logcounts"]])
+	}
     
     lapply(all.marker.genes, function(gene) {
         print(gene)
@@ -671,7 +680,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
 # [22] "OLO_single"    "OLO_ward"      "QAP_2SUM"      "QAP_BAR"       "QAP_Inertia"   "QAP_LS"        "R2E"          
 # [29] "Random"        "SA"            "Spectral"      "Spectral_norm" "SPIN_NH"       "SPIN_STS"      "TSP"          
 # [36] "VAT"     
-plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = "OLO_complete", scale.rows = T, shared.columns = F) {
+plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = "OLO_complete", scale.rows = T, shared.columns = F, name = "z-score", sort.rows = T, sort.cols = T, rowPal = NULL) {
 	require(ComplexHeatmap)
 	require(seriation)
 	require(RColorBrewer)
@@ -706,16 +715,27 @@ plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = 
 	
 	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
 	
-	
-	
-	
+	if(sort.rows) {
+		rowPal = rowPal[row.perm]
+	}	
+		
 	ht_list = NULL  ## Heatmap(...) + NULL gives you a HeatmapList object
 	for(i in 1:length(Enrichment.list)) {
 		Enrichment = Enrichment.list[[i]]
 		if(scale.rows == T) {
 			Enrichment = Matrix::t(scale(Matrix::t(Enrichment)))
 		}
-	    ht_list = ht_list + Heatmap(Enrichment[row.perm, col.perms[[i]]], name = "z-score", cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"))
+		if(sort.cols) {
+			Enrichment = Enrichment[, col.perms[[i]]]
+		}
+		if(sort.rows) {
+			Enrichment = Enrichment[row.perm, ]
+		}
+		if(is.null(rowPal)) {
+			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"))
+		} else {
+			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold", col = rowPal), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"))
+		}
 	}
 	
 	draw(ht_list)
@@ -863,8 +883,23 @@ plot.archetype.selected.genes <- function(ACTIONet.out, selected.genes, type = "
 }
 
 
-plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE, highlight = "connectivity") {
+plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal = "magma", title = "") {
 	Ht = Matrix::t(ACTIONet.out$unification.out$H.core)
+	
+	node.size = node.size * 0.3
+	ACTIONet = ACTIONet.out$ACTIONet
+    coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
+
+    
+    if (CPal %in% c("inferno", "magma", "viridis", "BlGrRd", "RdYlBu", "Spectral")) {
+		require(viridis)
+        Pal_grad = switch(CPal, inferno = viridis::inferno(500, alpha = 0.8), magma = viridis::magma(500, alpha = 0.8), viridis = viridis::viridis(500, alpha = 0.8), 
+            BlGrRd = colorRampPalette(c("blue", "grey", "red"))(500), Spectral = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, 
+                name = "Spectral"))))(100), RdYlBu = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100))
+    } else {
+        Pal_grad = colorRampPalette(c(NA.col, CPal))(500)
+    }	
+
 
 	k1 = k2 = round(sqrt(ncol(Ht)))
 	if(k1*k2 < ncol(Ht)) {
@@ -875,7 +910,17 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, transparency.attr = 
 	sapply(1:ncol(Ht), function(i) {
 		print(i)
 		h = Ht[, i]
-		plot.ACTIONet.gradient(ACTIONet.out, h, title = i, highlight = highlight, transparency.attr = transparency.attr, trans.z.threshold = trans.z.threshold, trans.fact= trans.fact, node.size = node.size, CPal = CPal, prune = prune, alpha_val = alpha_val, nonparameteric = nonparameteric)		
+
+		hs = sort(h, decreasing = T)
+		nnz = round( (sum(hs^2)^2) / (sum(hs^4)) )
+		
+		h = (h / hs[nnz])^3		
+		
+	    vCol = scales::col_bin(Pal_grad, domain = NULL, bins = 10)(h)
+        vCol = scales::alpha(vCol, 0.05 + 0.95*h/max(h))
+	    idx = order(h, decreasing = F)
+		plot(coors[idx, 1], coors[idx, 2], bg = vCol[idx], col = vCol[idx], cex = node.size, pch = 21, axes = FALSE, xlab = "", ylab = "", main = sprintf("Archetype %d", i))
+	    
 	})
 }
 

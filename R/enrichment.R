@@ -170,31 +170,30 @@ assess.categorical.autocorrelation <- function(ACTIONet.out, labels) {
 }
 
 
-geneset.enrichment.gProfiler <- function(genes, top.terms = 10, col = "tomato", organism = "hsapiens", category = "GO:BP") {
-    require(gProfileR)
+geneset.enrichment.gProfiler <- function(genes, top.terms = 10, col = "tomato", organism = "hsapiens", category = c("GO:BP")) {
+    require(gprofiler2)
     require(ggpubr)
     
-    terms = gprofiler(genes, ordered_query = FALSE, hier_filtering = "none", exclude_iea = FALSE, correction_method = "fdr", src_filter = c(category), 
+    gp.out = gprofiler2::gost(genes, ordered_query = FALSE, exclude_iea = FALSE, correction_method = "fdr", sources = category, 
         organism = organism)
     
+    terms = gp.out$result
+    terms$logPval = -log10(terms$p_value)
     
-    terms$logPval = -log10(terms$p.value)
     
-    
-    too.long = which(sapply(terms$term.name, function(x) stringr::str_length(x)) > 50)
+    too.long = which(sapply(terms$term_name, function(x) stringr::str_length(x)) > 50)
     terms = terms[-too.long, ]
     
     terms = terms[order(terms$logPval, decreasing = TRUE), ]
+    sub.terms = terms[1:min(top.terms, sum(terms$logPval > 1)), ]
     
-    
-    p = ggbarplot(terms[1:min(top.terms, sum(terms$logPval > 2)), ], x = "term.name", y = "logPval", sort.val = "asc", orientation = "horiz", 
+    p = ggbarplot(sub.terms, x = "term_name", y = "logPval", sort.val = "asc", orientation = "horiz", 
         fill = col, xlab = "", ylab = "") + geom_hline(yintercept = -log10(0.05), col = "gray", lty = 2)
     
     plot(p)
     
     return(p)
 }
-
 
 
 geneset.enrichment.archetype <- function(ACTIONet.out, genesets, min.size = 3, max.size = 500, min.enrichment = 1, genes.subset = NULL, core = T, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
@@ -368,6 +367,8 @@ geneset.enrichment.annotations <- function(ACTIONet.out, annotation.name, genese
     # 
     # logPvals = logPvals/log(10)
     
+    rownames(logPvals) = colnames(ind.mat)
+    colnames(logPvals) = colnames(DE.profile)
     
     return(logPvals)
 }
@@ -385,8 +386,8 @@ geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, 
 		genesets = apply(genesets, 2, function(x) intersect(rownames(DE.profile), rownames(genesets)[x > 0]))
 	}
 	ind.mat = as(do.call(cbind, as.matrix(lapply(genesets, function(gs) as.numeric(rownames(DE.profile) %in% gs)))), "sparseMatrix")
-	
-    
+	colnames(ind.mat) = names(genesets)
+
     # prune annotations
     cs = Matrix::colSums(ind.mat)
     mask = (min.size <= cs) & (cs <= max.size)
@@ -425,6 +426,9 @@ geneset.enrichment.gene.scores <- function(gene.scores, genesets, min.size = 3, 
     A = DE.profile 
     
     logPvals = Chernoff.enrichment.noRowScaling(A, X)
+    
+    rownames(logPvals) = colnames(ind.mat)
+    colnames(logPvals) = colnames(DE.profile)
         
     return(logPvals)
 }

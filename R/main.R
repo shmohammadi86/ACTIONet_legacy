@@ -809,13 +809,30 @@ classify.and.annotate.archetypes <- function(ACTIONet.out, sce, marker.genes = N
 		cell.annotations = cell.annotations.confidence = archEnrichment = NULL
 	}
 	
-	nonclustered.archetypes = which(!clustered.mask)
-	W.residual = cbind(scale(W.core[, clustered.mask]), orthoProject(W.core[, !clustered.mask], W.core[, clustered.mask]))
-	H.nonclustered = runsimplexRegression(W.residual, scale(S_r))
-	H.nonclustered = H.nonclustered[-c(1:sum(clustered.mask)), ]
-		
+	if(sum(!clustered.mask) > 0) {
+		nonclustered.archetypes = which(!clustered.mask)
+		W.residual = cbind(scale(ACTIONet.out$unification.out$W.core[, clustered.mask]), orthoProject(ACTIONet.out$unification.out$W.core[, !clustered.mask], ACTIONet.out$unification.out$W.core[, clustered.mask]))
+		H.nonclustered = runsimplexRegression(W.residual, scale(S_r))
+		H.nonclustered = H.nonclustered[-c(1:sum(clustered.mask)), ]
+	} else {
+		nonclustered.archetypes = NULL
+		H.nonclustered = NULL
+	}
 
 	res = list(clustered.archetypes = clustered.archetypes, H.clustered = H.clustered, clustered.archetype.annotations = annot.out, cell.annotations = cell.annotations, cell.annotations.confidence = cell.annotations.confidence, nonclustered.archetypes, H.nonclustered = H.nonclustered)
+	
+	return(res)
+}
+
+
+construct.subACTIONet <- function(ACTIONet.out, sce, archetype.set, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse") {
+	# S_r = t(reducedDims(sce)[["S_r"]])
+	mask = ACTIONet.out$unification.out$assignments.core %in% archetype.set
+	sub.sce = sce[, mask]
+
+	sub.ACTIONet = run.ACTIONet(sce = sub.sce, k_max = k_max, layout.compactness = layout.compactness, thread_no = thread_no, epsilon = epsilon, LC = LC, arch.specificity.z = arch.specificity.z, core.z = core.z, sce.data.attr = sce.data.attr, sym_method = sym_method, scale.initial.coordinates = scale.initial.coordinates, reduction_slot = reduction_slot, batch = batch, batch.correction.rounds = batch.correction.rounds, batch.lambda = batch.lambda, k_min = k_min, n_epochs = n_epochs, compute.core = compute.core, compute.signature = compute.signature, specificity.mode = specificity.mode)
+
+	res = list(sce = sub.sce, ACTIONet.out = sub.ACTIONet)
 	
 	return(res)
 }
