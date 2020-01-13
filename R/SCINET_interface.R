@@ -173,23 +173,18 @@ run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2,
 	}
 
 
-	DE.profile  = log1p(as.matrix(gene.scores.mat))
-	if(is.null(DE.profile)) {
-		print("Error in run.DE.SCINET: DE.profile.out is not ACTIONet-compatible SCE object")
-		return(ACTIONet.out)
-	}
-	
-	common.genes = intersect(rownames(DE.profile), rownames(PCNet))
+	common.genes = intersect(rownames(gene.scores.mat), rownames(Adj))
 	if(length(common.genes) == 0) {
 		print("No common genes found. Check rownames (or vertex names) for the input graph");
 		return(ACTIONet.out)
 	}
-	A = DE.profile[common.genes, ]
+	A = gene.scores.mat[common.genes, ]
 	G = Adj[common.genes, common.genes]
 	
 	
+	
 	print("Constructing networks");
-	gene.activity.scores = SCINET::compute_gene_activities_full(A = A, thread_no = thread_no)
+	gene.activity.scores = SCINET::RIN_transform(A = A, thread_no = thread_no)
 	cellstate.nets = SCINET::construct_cell_networks(net = G, gene_activities = gene.activity.scores, thread_no = thread_no)
 	cellstate.nets.list = as.list(cellstate.nets)
 	
@@ -201,6 +196,7 @@ run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2,
 		V(G)$name = common.genes[!filter.mask]
 		if(compute.topo.specificity == TRUE) {
 			z.scores = topo.spec(G, spec.sample_no)
+			V(G)$specificity.z = z.scores
 			V(G)$specificity = 1 / (1 + exp(-z.scores))
 		}
 		# G = igraph::graph_from_adjacency_matrix(G.Adj, mode = "undirected", weighted = T)
@@ -214,10 +210,10 @@ run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2,
 		return(G)
 	})
 	
-	if(is.null(colnames(DE.profile))) {		
-		names(cellstate.nets.list.igraph) = 1:ncol(DE.profile)
+	if(is.null(colnames(gene.scores.mat))) {		
+		names(cellstate.nets.list.igraph) = 1:ncol(gene.scores.mat)
 	} else {
-		names(cellstate.nets.list.igraph) = colnames(DE.profile)
+		names(cellstate.nets.list.igraph) = colnames(gene.scores.mat)
 	}
 
 	return(cellstate.nets.list.igraph)

@@ -836,3 +836,5 @@ construct.subACTIONet <- function(ACTIONet.out, sce, archetype.set, k_max = 20, 
 	
 	return(res)
 }
+
+

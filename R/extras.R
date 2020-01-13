@@ -671,6 +671,7 @@ compute.cell.connectivity <- function(ACTIONet.out, alpha_val = 0.85) {
 	IDX = split(1:length(ACTIONet.out$unification.out$assignments.core), ACTIONet.out$unification.out$assignments.core)
 	locality = matrix(0, nrow = length(ACTIONet.out$unification.out$assignments.core), ncol = length(IDX))
 	for (i in 1:length(IDX)) {
+		print(i)
 		idx = IDX[[i]]
 		
 		sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
@@ -682,7 +683,7 @@ compute.cell.connectivity <- function(ACTIONet.out, alpha_val = 0.85) {
 			pr = page_rank(sub.ACTIONet, personalized = sub.cn, damping = alpha_val)$vector
 			y.n = pr/sd(pr)
 
-			v = pmax(y.n, x.n[idx])
+			v = y.n * x.n[idx]
 			v[is.na(v)] = 0
 			
 			locality[idx, i] = v
