@@ -176,7 +176,7 @@ run.SCINET.gene.scores <- function(gene.scores.mat, G=NULL, min.edge.weight = 2,
 	common.genes = intersect(rownames(gene.scores.mat), rownames(Adj))
 	if(length(common.genes) == 0) {
 		print("No common genes found. Check rownames (or vertex names) for the input graph");
-		return(ACTIONet.out)
+		return()
 	}
 	A = gene.scores.mat[common.genes, ]
 	G = Adj[common.genes, common.genes]
