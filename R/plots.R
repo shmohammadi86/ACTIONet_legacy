@@ -887,7 +887,7 @@ plot.archetype.selected.genes <- function(ACTIONet.out, selected.genes, type = "
 }
 
 
-plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal = "magma", title = "") {
+plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal = "magma", title = "", arch.labels = NULL) {
 	Ht = Matrix::t(ACTIONet.out$unification.out$H.core)
 	
 	node.size = node.size * 0.3
@@ -910,6 +910,9 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal 
 		k2 = k2+1
 	}
 
+	if(is.null(arch.labels))
+		arch.labels = sapply(1:ncol(Ht), function(i) sprintf("Archetype %d", i))
+	 
 	par(mfrow = c(k1, k2), mar = c(0, 0, 1, 0))
 	sapply(1:ncol(Ht), function(i) {
 		print(i)
@@ -923,7 +926,7 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal 
 	    vCol = scales::col_bin(Pal_grad, domain = NULL, bins = 10)(h)
         vCol = scales::alpha(vCol, 0.05 + 0.95*h/max(h))
 	    idx = order(h, decreasing = F)
-		plot(coors[idx, 1], coors[idx, 2], bg = vCol[idx], col = vCol[idx], cex = node.size, pch = 21, axes = FALSE, xlab = "", ylab = "", main = sprintf("Archetype %d", i))
+		plot(coors[idx, 1], coors[idx, 2], bg = vCol[idx], col = vCol[idx], cex = node.size, pch = 21, axes = FALSE, xlab = "", ylab = "", main = arch.labels[[i]])
 	    
 	})
 }
