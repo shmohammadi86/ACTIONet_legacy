@@ -684,7 +684,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
 # [22] "OLO_single"    "OLO_ward"      "QAP_2SUM"      "QAP_BAR"       "QAP_Inertia"   "QAP_LS"        "R2E"          
 # [29] "Random"        "SA"            "Spectral"      "Spectral_norm" "SPIN_NH"       "SPIN_STS"      "TSP"          
 # [36] "VAT"     
-plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = "OLO_complete", scale.rows = T, shared.columns = F, name = "z-score", sort.rows = T, sort.cols = T, rowPal = NULL) {
+plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = "OLO_complete", scale.rows = T, shared.columns = F, name = "z-score", sort.rows = T, sort.cols = T, rowPal = NULL, border.col = "black") {
 	require(ComplexHeatmap)
 	require(seriation)
 	require(RColorBrewer)
@@ -736,9 +736,9 @@ plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = 
 			Enrichment = Enrichment[row.perm, ]
 		}
 		if(is.null(rowPal)) {
-			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"), column_names_max_height = unit(10, "cm"))
+			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold"), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = border.col), row_names_max_width = unit(10, "cm"), column_names_max_height = unit(10, "cm"))
 		} else {
-			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold", col = rowPal), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = "black"), row_names_max_width = unit(10, "cm"), column_names_max_height = unit(10, "cm"))
+			ht_list = ht_list + Heatmap(Enrichment, name = name, cluster_rows = F, cluster_columns = F, col = gradPal, row_title = row.title, column_title = names(Enrichment.list)[[i]], column_names_gp = gpar(fontsize = 10, fontface="bold"), row_names_gp = gpar(fontsize = 10, fontface="bold", col = rowPal), column_title_gp = gpar(fontsize = 12, fontface="bold"), row_title_gp = gpar(fontsize = 12, fontface="bold"), row_names_side = "left", rect_gp = gpar(col = border.col), row_names_max_width = unit(10, "cm"), column_names_max_height = unit(10, "cm"))
 		}
 	}
 	

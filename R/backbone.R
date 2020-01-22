@@ -116,7 +116,7 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
     return(ht)
 }
 
-unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = 0.9, resolution = 1, alpha_val = 0.5, min.cells = 5, 
+unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, 
     thread_no = 8, sce.data.attr = "logcounts") {
     G = ACTIONet.out$build.out$ACTIONet
     
@@ -129,7 +129,24 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     
     A = as.matrix(cor(W_r[, selected.states]))
     diag(A) = 0
-    A[A < min.cor] = 0
+    
+    if(!is.na(min.cor)) {
+		A[A < min.cor] = 0
+	} else {
+		thresholds = seq(0.8, 1, by = 0.01)
+		cc.counts = sapply(thresholds, function(threshold) {
+			CC.pruned = CC
+			CC.pruned[CC.pruned < threshold] = 0
+			subG = graph_from_adjacency_matrix(CC.pruned, weighted = T, mode = "undirected")
+			return(components(subG)$no)
+		})
+
+		x = cc.counts# - min(cc.counts)
+		z = (x - median(x)) / mad(x)
+		min.cor = thresholds[min(which(z > 3)) - 1]
+		R.utils::printf("Min. correlation is set to: %.1f\n", min.cor)
+		A[A < min.cor] = 0		
+	}
     
     
     print("Identify equivalent cell state classes")

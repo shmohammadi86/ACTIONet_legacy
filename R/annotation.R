@@ -121,6 +121,9 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, cor
     archetypeLabels = Annot[apply(Enrichment.Z, 1, which.max)]
     Labels.confidence = apply(Enrichment.Z, 1, max)
     
+    
+    rownames(Enrichment.Z) = paste("A", 1:nrow(Enrichment.Z), "-", archetypeLabels, sep = "")
+    
     out.list = list(Labels = archetypeLabels, Labels.confidence = Labels.confidence, Enrichment = Enrichment.Z)
     
     return(out.list)
@@ -292,6 +295,8 @@ annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.s
     names(Labels) = rownames(archetype.panel)
     names(Labels.conf) = rownames(archetype.panel)
     rownames(Z) = rownames(archetype.panel)
+
+    rownames(Z) = paste("A", 1:nrow(Z), "-", Labels, sep = "")
     
     out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
     

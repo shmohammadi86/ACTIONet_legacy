@@ -434,7 +434,11 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
 	library(Matrix)
 	print("Computing feature specificity ... ")
 	
-    A = as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix")
+    if (is.matrix(sce) | is.sparseMatrix(sce)) {
+		A = as(sce, "sparseMatrix")
+    } else {        
+		A = as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix")
+    }
     
     print("Binarize matrix")
     B = A
@@ -478,10 +482,12 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     diff.sce <- SingleCellExperiment(assays = list(significance = logPvals, profile = Obs))
     rownames(diff.sce) = rownames(sce)
     
-    if(class(rowRanges(sce))[[1]] == "GRanges") {
-		rowRanges(diff.sce) = rowRanges(sce)
-		genome(diff.sce) = genome(sce)
-		values(rowRanges(sce)) = c()
+    if(!(is.matrix(sce) | is.sparseMatrix(sce))) {
+		if(class(rowRanges(sce))[[1]] == "GRanges") {
+			rowRanges(diff.sce) = rowRanges(sce)
+			genome(diff.sce) = genome(sce)
+			values(rowRanges(sce)) = c()
+		}
 	} 
     
     return(diff.sce)
