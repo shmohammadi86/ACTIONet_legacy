@@ -2,5 +2,5 @@ LINALG=$(BLAS_LIBS) $(LAPACK_LIBS)
 SOURCES=$(wildcard ACTION/*.cc)
 SOURCES+=$(wildcard ACTIONet/*.cc)
 OBJECTS=ACTION.o ACTIONetcore.o RcppExports.o $(SOURCES:.cc=.o)
-PKG_LIBS=$(SHLIB_OPENMP_CXXFLAGS) ${LINALG} -lpthread -lm
-PKG_CXXFLAGS=`find ../inst/include -type d | sed s/^/-I/` $(SHLIB_OPENMP_CXXFLAGS) -w -msse2 -DUSE_BLAS_LIB -DAXPBY -DINT_64BITS -DARMA_64BIT_WORD -std=c++11
+PKG_LIBS=${LINALG} -lpthread -lm
+PKG_CXXFLAGS=`find ../inst/include -type d | sed s/^/-I/` -w -msse2 -DUSE_BLAS_LIB -DAXPBY -DINT_64BITS -DARMA_64BIT_WORD -std=c++11

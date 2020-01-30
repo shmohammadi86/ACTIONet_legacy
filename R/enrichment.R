@@ -192,9 +192,7 @@ geneset.enrichment.gProfiler <- function(genes, top.terms = 10, col = "tomato", 
     
     p = ggbarplot(sub.terms, x = "term_name", y = "logPval", sort.val = "asc", orientation = "horiz", 
         fill = col, xlab = "", ylab = "") + geom_hline(yintercept = -log10(0.05), col = "gray", lty = 2)
-    
-    plot(p)
-    
+        
     return(p)
 }
 

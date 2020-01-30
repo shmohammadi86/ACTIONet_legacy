@@ -1,4 +1,64 @@
 #include <actionetcore.h>
+
+#include <thread>
+#include <atomic>
+
+template<class Function>
+inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn) {
+    if (numThreads <= 0) {
+        numThreads = std::thread::hardware_concurrency();
+    }
+
+    if (numThreads == 1) {
+        for (size_t id = start; id < end; id++) {
+            fn(id, 0);
+        }
+    } else {
+        std::vector<std::thread> threads;
+        std::atomic<size_t> current(start);
+
+        // keep track of exceptions in threads
+        // https://stackoverflow.com/a/32428427/1713196
+        std::exception_ptr lastException = nullptr;
+        std::mutex lastExceptMutex;
+
+        for (size_t threadId = 0; threadId < numThreads; ++threadId) {
+            threads.push_back(std::thread([&, threadId] {
+                while (true) {
+                    size_t id = current.fetch_add(1);
+
+                    if ((id >= end)) {
+                        break;
+                    }
+
+                    try {
+                        fn(id, threadId);
+                    } catch (...) {
+                        std::unique_lock<std::mutex> lastExcepLock(lastExceptMutex);
+                        lastException = std::current_exception();
+                        /*
+                         * This will work even when current is the largest value that
+                         * size_t can fit, because fetch_add returns the previous value
+                         * before the increment (what will result in overflow
+                         * and produce 0 instead of current + 1).
+                         */
+                        current = end;
+                        break;
+                    }
+                }
+            }));
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        if (lastException) {
+            std::rethrow_exception(lastException);
+        }
+    }
+
+
+}
+
 mat zscore(mat A) {	
 	rowvec mu = mean(A, 0);
 	rowvec sigma = stddev(A, 0);
@@ -12,65 +72,64 @@ mat zscore(mat A) {
 }
 
 namespace ACTIONetcore {	
+
 	sp_mat smoothKNN(sp_mat D, int thread_no = -1) {		
 		double epsilon = 1e-6;
 
 		int nV = D.n_rows;
 		sp_mat G = D;			
 		
-		#pragma omp parallel for num_threads(thread_no) 			
-		for(int i = 0; i < nV; i++) {
+		//#pragma omp parallel for num_threads(thread_no) 			
+		//for(int i = 0; i < nV; i++) {
+		ParallelFor(0, nV, thread_no, [&](size_t i, size_t threadId) {
 			sp_mat v = D.col(i);
-			if(v.n_nonzero == 0)
-				continue;
-			
 			vec vals = nonzeros(v);	
-			if(vals.n_elem == 0)
-				continue;
+			if(vals.n_elem > 0) {
 				
-			double rho = min(vals);
-			vec negated_shifted_vals = -(vals - rho); 
-			double target = log2(vals.n_elem);
-			
-			// Binary search to find optimal sigma
-			double sigma = 1.0;
-			double lo = 0.0;
-			double hi = DBL_MAX;
-			
-			int j;
-			for(j = 0; j < 64; j ++) {
-				double obj = sum(exp(negated_shifted_vals / sigma));
+				double rho = min(vals);
+				vec negated_shifted_vals = -(vals - rho); 
+				double target = log2(vals.n_elem);
+				
+				// Binary search to find optimal sigma
+				double sigma = 1.0;
+				double lo = 0.0;
+				double hi = DBL_MAX;
+				
+				int j;
+				for(j = 0; j < 64; j ++) {
+					double obj = sum(exp(negated_shifted_vals / sigma));
 
-				if (abs(obj - target) < epsilon) {
-					break;
-				}
-
-				if (target < obj) {
-					hi = sigma;
-					sigma = 0.5 * (lo + hi);
-				}
-				else {
-					lo = sigma;
-					if (hi == DBL_MAX) {
-						sigma *= 2;
+					if (abs(obj - target) < epsilon) {
+						break;
 					}
-					else {
+
+					if (target < obj) {
+						hi = sigma;
 						sigma = 0.5 * (lo + hi);
 					}
-				}				
+					else {
+						lo = sigma;
+						if (hi == DBL_MAX) {
+							sigma *= 2;
+						}
+						else {
+							sigma = 0.5 * (lo + hi);
+						}
+					}				
+				}
+				
+				double obj = sum(exp(negated_shifted_vals / sigma));			
+				//printf("%d- rho = %.3f, degree = %d, log2(k) = %.2e, sigma = %.2e, residual = %.2e, iters = %d\n", i, rho, vals.n_elem, target, sigma, abs(obj - target), j);
+				
+				for(sp_mat::col_iterator it = G.begin_col(i); it != G.end_col(i); ++it) {
+					*it = max(1e-16, exp( -max(0.0, (*it) - rho ) / sigma ));
+				}			
 			}
-			
-			double obj = sum(exp(negated_shifted_vals / sigma));			
-			//printf("%d- rho = %.3f, degree = %d, log2(k) = %.2e, sigma = %.2e, residual = %.2e, iters = %d\n", i, rho, vals.n_elem, target, sigma, abs(obj - target), j);
-			
-			for(sp_mat::col_iterator it = G.begin_col(i); it != G.end_col(i); ++it) {
-				*it = max(1e-16, exp( -max(0.0, (*it) - rho ) / sigma ));
-			}			
-		}
+		});
+		
 		return(G);
 	}
-	
-	
+
 	field<mat> layoutACTIONet(sp_mat &G,
 		mat &S_r,
 		int compactness_level = 50,
@@ -243,6 +302,7 @@ namespace ACTIONetcore {
 				
 		return coordinates;	
 	}	
+
 	
 }
 

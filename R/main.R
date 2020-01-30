@@ -1,4 +1,4 @@
-run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
+run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
     batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9) {
     require(Matrix)
@@ -26,8 +26,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     # Build ACTIONet
     set.seed(0)
-    build.out = buildAdaptiveACTIONet(H_stacked = reconstruct.out$H_stacked, thread_no = thread_no, LC = LC, epsilon = epsilon, sym_method = sym_method, 
-        auto_adjust_LC = F)
+    build.out = buildAdaptiveACTIONet(H_stacked = reconstruct.out$H_stacked, LC = LC, M = hnsw_M, hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
     
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
@@ -97,7 +96,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     return(ACTIONet.out)
 }
 
-reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, epsilon = 3, LC = 1, auto_adjust_LC = FALSE, 
+reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10,
     n_epochs = 500, sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r") {
     # Build ACTIONet
     set.seed(0)
@@ -106,8 +105,8 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
         R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
         return()
     }
-    build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, thread_no = thread_no, LC = LC, auto_adjust_LC = auto_adjust_LC, 
-        epsilon = epsilon, sym_method = sym_method)
+    build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, LC = LC, M = hnsw_M, ef_construction = hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
+        
     ACTIONet.out$build.out = build.out
     
     

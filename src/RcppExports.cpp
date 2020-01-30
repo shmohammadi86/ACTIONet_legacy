@@ -34,7 +34,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // runSPA
-mat runSPA(mat A, int k);
+List runSPA(mat A, int k);
 RcppExport SEXP _ACTIONet_runSPA(SEXP ASEXP, SEXP kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -42,6 +42,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< mat >::type A(ASEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     rcpp_result_gen = Rcpp::wrap(runSPA(A, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// runDCSS
+List runDCSS(sp_mat& A, int k, int dim);
+RcppExport SEXP _ACTIONet_runDCSS(SEXP ASEXP, SEXP kSEXP, SEXP dimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< sp_mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< int >::type dim(dimSEXP);
+    rcpp_result_gen = Rcpp::wrap(runDCSS(A, k, dim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -112,32 +125,20 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
-// buildACTIONet
-List buildACTIONet(mat& H_stacked, int kNN, int thread_no);
-RcppExport SEXP _ACTIONet_buildACTIONet(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< int >::type kNN(kNNSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(buildACTIONet(H_stacked, kNN, thread_no));
-    return rcpp_result_gen;
-END_RCPP
-}
 // buildAdaptiveACTIONet
-List buildAdaptiveACTIONet(mat& H_stacked, double LC, double epsilon, int thread_no, bool auto_adjust_LC, string sym_method);
-RcppExport SEXP _ACTIONet_buildAdaptiveACTIONet(SEXP H_stackedSEXP, SEXP LCSEXP, SEXP epsilonSEXP, SEXP thread_noSEXP, SEXP auto_adjust_LCSEXP, SEXP sym_methodSEXP) {
+List buildAdaptiveACTIONet(mat& H_stacked, double LC, double M, double ef_construction, double ef, int thread_no, string sym_method);
+RcppExport SEXP _ACTIONet_buildAdaptiveACTIONet(SEXP H_stackedSEXP, SEXP LCSEXP, SEXP MSEXP, SEXP ef_constructionSEXP, SEXP efSEXP, SEXP thread_noSEXP, SEXP sym_methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
     Rcpp::traits::input_parameter< double >::type LC(LCSEXP);
-    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type M(MSEXP);
+    Rcpp::traits::input_parameter< double >::type ef_construction(ef_constructionSEXP);
+    Rcpp::traits::input_parameter< double >::type ef(efSEXP);
     Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    Rcpp::traits::input_parameter< bool >::type auto_adjust_LC(auto_adjust_LCSEXP);
     Rcpp::traits::input_parameter< string >::type sym_method(sym_methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(buildAdaptiveACTIONet(H_stacked, LC, epsilon, thread_no, auto_adjust_LC, sym_method));
+    rcpp_result_gen = Rcpp::wrap(buildAdaptiveACTIONet(H_stacked, LC, M, ef_construction, ef, thread_no, sym_method));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -210,51 +211,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// computeNearestDist_edgeList
-List computeNearestDist_edgeList(mat& H_stacked, double kNN, int thread_no);
-RcppExport SEXP _ACTIONet_computeNearestDist_edgeList(SEXP H_stackedSEXP, SEXP kNNSEXP, SEXP thread_noSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< double >::type kNN(kNNSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeNearestDist_edgeList(H_stacked, kNN, thread_no));
-    return rcpp_result_gen;
-END_RCPP
-}
-// computeFullDist
-mat computeFullDist(mat& H_stacked, int thread_no, int verbose);
-RcppExport SEXP _ACTIONet_computeFullDist(SEXP H_stackedSEXP, SEXP thread_noSEXP, SEXP verboseSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat& >::type H_stacked(H_stackedSEXP);
-    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
-    Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeFullDist(H_stacked, thread_no, verbose));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_reduceGeneExpression", (DL_FUNC) &_ACTIONet_reduceGeneExpression, 4},
     {"_ACTIONet_runsimplexRegression", (DL_FUNC) &_ACTIONet_runsimplexRegression, 2},
     {"_ACTIONet_runSPA", (DL_FUNC) &_ACTIONet_runSPA, 2},
+    {"_ACTIONet_runDCSS", (DL_FUNC) &_ACTIONet_runDCSS, 3},
     {"_ACTIONet_runAA", (DL_FUNC) &_ACTIONet_runAA, 2},
     {"_ACTIONet_runACTION", (DL_FUNC) &_ACTIONet_runACTION, 4},
     {"_ACTIONet_runACTION_withBatch", (DL_FUNC) &_ACTIONet_runACTION_withBatch, 7},
     {"_ACTIONet_frSVD", (DL_FUNC) &_ACTIONet_frSVD, 4},
     {"_ACTIONet_set_seed", (DL_FUNC) &_ACTIONet_set_seed, 1},
-    {"_ACTIONet_buildACTIONet", (DL_FUNC) &_ACTIONet_buildACTIONet, 3},
-    {"_ACTIONet_buildAdaptiveACTIONet", (DL_FUNC) &_ACTIONet_buildAdaptiveACTIONet, 6},
+    {"_ACTIONet_buildAdaptiveACTIONet", (DL_FUNC) &_ACTIONet_buildAdaptiveACTIONet, 7},
     {"_ACTIONet_layoutACTIONet", (DL_FUNC) &_ACTIONet_layoutACTIONet, 5},
     {"_ACTIONet_reconstructArchetypes", (DL_FUNC) &_ACTIONet_reconstructArchetypes, 4},
     {"_ACTIONet_assessFeatureSets", (DL_FUNC) &_ACTIONet_assessFeatureSets, 3},
     {"_ACTIONet_phenotypeEnrichment", (DL_FUNC) &_ACTIONet_phenotypeEnrichment, 3},
     {"_ACTIONet_update_layout_2D", (DL_FUNC) &_ACTIONet_update_layout_2D, 4},
-    {"_ACTIONet_computeNearestDist_edgeList", (DL_FUNC) &_ACTIONet_computeNearestDist_edgeList, 3},
-    {"_ACTIONet_computeFullDist", (DL_FUNC) &_ACTIONet_computeFullDist, 3},
     {NULL, NULL, 0}
 };
 

@@ -13,6 +13,10 @@ runSPA <- function(A, k) {
     .Call(`_ACTIONet_runSPA`, A, k)
 }
 
+runDCSS <- function(A, k, dim = 10L) {
+    .Call(`_ACTIONet_runDCSS`, A, k, dim)
+}
+
 runAA <- function(A, W0) {
     .Call(`_ACTIONet_runAA`, A, W0)
 }
@@ -33,12 +37,8 @@ set_seed <- function(seed) {
     invisible(.Call(`_ACTIONet_set_seed`, seed))
 }
 
-buildACTIONet <- function(H_stacked, kNN = 30L, thread_no = 8L) {
-    .Call(`_ACTIONet_buildACTIONet`, H_stacked, kNN, thread_no)
-}
-
-buildAdaptiveACTIONet <- function(H_stacked, LC = 1.0, epsilon = 0.0, thread_no = 8L, auto_adjust_LC = FALSE, sym_method = "OR") {
-    .Call(`_ACTIONet_buildAdaptiveACTIONet`, H_stacked, LC, epsilon, thread_no, auto_adjust_LC, sym_method)
+buildAdaptiveACTIONet <- function(H_stacked, LC = 1.0, M = 16, ef_construction = 200, ef = 10, thread_no = 4L, sym_method = "OR") {
+    .Call(`_ACTIONet_buildAdaptiveACTIONet`, H_stacked, LC, M, ef_construction, ef, thread_no, sym_method)
 }
 
 layoutACTIONet <- function(G, S_r, compactness_level = 50L, n_epochs = 100L, thread_no = 8L) {
@@ -59,13 +59,5 @@ phenotypeEnrichment <- function(H_stacked, phenotype_associations, rand_perm_no)
 
 update_layout_2D <- function(coors, compactness_level = 50L, n_epochs = 100L, thread_no = 8L) {
     .Call(`_ACTIONet_update_layout_2D`, coors, compactness_level, n_epochs, thread_no)
-}
-
-computeNearestDist_edgeList <- function(H_stacked, kNN, thread_no = 8L) {
-    .Call(`_ACTIONet_computeNearestDist_edgeList`, H_stacked, kNN, thread_no)
-}
-
-computeFullDist <- function(H_stacked, thread_no = 8L, verbose = 1L) {
-    .Call(`_ACTIONet_computeFullDist`, H_stacked, thread_no, verbose)
 }
 

@@ -1,7 +1,6 @@
 #ifndef ACTION_H
 #define ACTION_H
 
-#include <omp.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -69,6 +68,8 @@ struct ACTION_results {
 
 namespace ACTION {
 	SPA_results SPA(mat M, int k); // Solve convex-NMF using the Successive Projection Algorithm (SPA)
+	SPA_results DCSS(sp_mat A, int k, int dim); // Deterministic column subset selection
+	
 	void simplexRegression(mat &A, mat &B, double *X_ptr); // min_{X} (|| AX - B ||) s.t. simplex constraint
 	field<mat> AA (mat &X, mat &Z0); // Robust archetypal analysis method
 	ACTION_results runACTION(mat S_r, int k_min, int k_max, int numThreads); // Main ACTION function	
