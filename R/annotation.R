@@ -195,109 +195,111 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
     return(res)
 }
 
+
 annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = T) {
     require(ACTIONet)
     require(igraph)
     require(Matrix)
     require(stringr)
-    
-	if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
-		marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
-	}
-	
-	if(core == T) {
-		if (("unification.out" %in% names(ACTIONet.out))) {
-			print("Using unification.out$DE.core (merged archetypes)")
-				archetype.panel = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]]))
-		} else {
-			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
-			return()
-		}
-	} else {
-		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
-			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]]))
-		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
-			return()
-		}
-	}      
 
-	
+        if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
+                marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
+        }
+
+        if(core == T) {
+                if (("unification.out" %in% names(ACTIONet.out))) {
+                        print("Using unification.out$DE.core (merged archetypes)")
+                        archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])))
+                } else {
+                        print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+                        return()
+                }
+        } else {
+                if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
+                        print("Using archetype.differential.signature (all archetypes)")
+                        archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]])))
+                } else {
+                        print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
+                        return()
+                }
+        }     
+
+
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
         GS.names = sapply(1:length(GS.names), function(i) sprintf("Celltype %s", i))
     }
-    
+
     markers.table = do.call(rbind, lapply(names(marker.genes), function(celltype) {
         genes = marker.genes[[celltype]]
-        if (length(genes) == 0) 
+        if (length(genes) == 0)
             return(data.frame())
-        
-        
+
+
         signed.count = sum(sapply(genes, function(gene) grepl("\\+$|-$", gene)))
         is.signed = signed.count > 0
-        
+
         if (!is.signed) {
             df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype, stringsAsFactors = F)
         } else {
-            
-            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene,
                 stringr::fixed("+"), ""))))
-            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene,
                 stringr::fixed("-"), ""))))
-            
-            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
+
+            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))),
                 Celltype = celltype, stringsAsFactors = F)
         }
     }))
-    markers.table = markers.table[markers.table$Gene %in% rownames(archetype.panel), ]
+    markers.table = markers.table[markers.table$Gene %in% colnames(archetype.panel), ]
+
     if (dim(markers.table)[1] == 0) {
         print("No markers are left")
         return()
-    }    
+    }   
+    archetype.panel = archetype.panel[, markers.table$Gene]
 
-	X = orthoProject(archetype.panel, Matrix::rowMeans(archetype.panel))
-	archetype.panel = t(apply(X, 2, function(u) RNOmni::rankNorm(u)))
-    # archetype.panel = archetype.panel[, markers.table$Gene]
-	
-	#archetype.panel = t(apply(scale(archetype.panel), 1, function(u) RNOmni::rankNorm(u)))
-               
     IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
-    
+
     print("Computing significance scores")
     set.seed(0)
     Z = sapply(IDX, function(idx) {
         markers = (as.character(markers.table$Gene[idx]))
         directions = markers.table$Direction[idx]
         mask = markers %in% colnames(archetype.panel)
-        
+
         A = as.matrix(archetype.panel[, markers[mask]])
         sgn = as.numeric(directions[mask])
-        stat = (A %*% sgn)
-		logPval = -log10(pnorm(stat, sd = sqrt(length(sgn)), mean = 0, lower.tail = F))
-        return(logPval)
+        stat = A %*% sgn
+
+        rand.stats = sapply(1:rand.sample.no, function(i) {
+            rand.samples = sample.int(dim(archetype.panel)[2], sum(mask))
+            rand.A = as.matrix(archetype.panel[, rand.samples])
+            rand.stat = rand.A %*% sgn
+        })
+
+        cell.zscores = as.numeric((stat - apply(rand.stats, 1, mean))/apply(rand.stats, 1, sd))
+
+        return(cell.zscores)
     })
-    Z = (Z)
-    
+
     Z[is.na(Z)] = 0
     Labels = colnames(Z)[apply(Z, 1, which.max)]
-    
+
     #L = names(marker.genes)
     #L.levels = L[L %in% Labels]
     #Labels = match(L, L.levels)
     #names(Labels) = L.levels
     #Labels = factor(Labels, levels = L)
     Labels.conf = apply(Z, 1, max)
-    
+
     names(Labels) = rownames(archetype.panel)
     names(Labels.conf) = rownames(archetype.panel)
     rownames(Z) = rownames(archetype.panel)
 
-    rownames(Z) = paste("A", 1:nrow(Z), "-", Labels, sep = "")
-    
     out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
-    
+
     return(out.list)
 }
 
