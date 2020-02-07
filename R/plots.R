@@ -1,10 +1,5 @@
-# pals::polychrome(n = 36)
-ACTIONet.color.bank = c("#5A5156", "#E4E1E3", "#F6222E", "#FE00FA", "#16FF32", "#3283FE", "#FEAF16", "#B00068", "#1CFFCE", "#90AD1C", "#2ED9FF", "#DEA0FD", "#AA0DFE", "#F8A19F", "#325A9B", "#C4451C", "#1C8356", "#85660D", "#B10DA1", "#FBE426", "#1CBE4F", "#FA0087", "#FC1CBF", "#F7E1A0", "#C075A6", "#782AB6", "#AAF400", "#BDCDFF", "#822E1C", "#B5EFB5", "#7ED7D1", "#1C7F93", "#D85FF7", "#683B79", "#66B0FF", "#3B00FB")
-
-ACTIONet.color.bank0 = c("#1f78b4", "#33a02c", "#e31a1c", "#6a3d9a", "#d95f02", "#e7298a", "#feaf16", "#a6761d", "#1b9e77", "#808080", "#a6cee3", "#b2df8a", "#fb9a99", "#fdbf6f", "#006E71", "#000080", "#8C564BFF", "#800000", "#e6194b", "#ffe119", "#AA4488", "#f032e6", "#bcf60c")
-
 # From: https://github.com/r3fang/SnapATAC/blob/master/R/plottings-utilities.R
-ACTIONet.color.bank1 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
+Pals.Snap88 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", "#68228B", "#AAAA44", "#60CC52", "#771155", "#DDDD77", 
     "#774411", "#AA7744", "#AA4455", "#117744", "#000080", "#44AA77", "#AA4488", "#DDAA77", "#D9D9D9", "#BC80BD", "#FFED6F", "#7FC97F", 
     "#BEAED4", "#FDC086", "#FFFF99", "#386CB0", "#F0027F", "#BF5B17", "#666666", "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", 
     "#E6AB02", "#A6761D", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", 
@@ -13,20 +8,11 @@ ACTIONet.color.bank1 = c("#E31A1C", "#FFD700", "#771122", "#777711", "#1F78B4", 
     "#F781BF", "#999999", "#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3", "#8DD3C7", "#FFFFB3", 
     "#BEBADA", "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5")
 
-# From: https://github.com/brianhie/scanorama/blob/master/scanorama/scanorama.py
-ACTIONet.color.bank2 = c("#377eb8", "#ff7f00", "#4daf4a", "#f781bf", "#a65628", "#984ea3", "#999999", "#e41a1c", "#dede00", "#ffe119", 
-    "#e6194b", "#ffbea3", "#911eb4", "#46f0f0", "#f032e6", "#d2f53c", "#008080", "#e6beff", "#aa6e28", "#800000", "#aaffc3", "#808000", 
-    "#ffd8b1", "#000080", "#808080", "#fabebe", "#a3f4ff")
-
-# From: https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-ACTIONet.color.bank3 = c("#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe", 
-    "#008080", "#e6beff", "#9a6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#808080", "#ffffff", "#000000")
 
 
-
-plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, 
-	node.size = 1, CPal = ACTIONet.color.bank, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
-    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = NULL) {
+plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 2, 
+	node.size = 1, CPal = Pals.Snap88, add.text = TRUE, text.halo.width = 0.1, label.text.size = 0.8, 
+    suppress.legend = TRUE, legend.pos = "bottomright", add.states = F, title = "", highlight = NULL, border.contrast.factor = 0.5) {
     
     node.size = node.size * 0.5
     
@@ -89,10 +75,10 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
         beta[z > trans.z.threshold] = 1
         beta = beta^trans.fact
         
-        vCol.border = scales::alpha(colorspace::darken(vCol, 0.5), beta)
+        vCol.border = scales::alpha(colorspace::darken(vCol, border.contrast.factor), beta)
         vCol = scales::alpha(vCol, beta)
     } else {
-        vCol.border = colorspace::darken(vCol, 0.5)
+        vCol.border = colorspace::darken(vCol, border.contrast.factor)
     }
 
 	x = coors[, 1]
@@ -182,7 +168,7 @@ plot.ACTIONet <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL,
 }
 
 
-plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, node.size = 1, CPal = ACTIONet.color.bank, highlight = NULL) {
+plot.ACTIONet.3D <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, node.size = 1, CPal = Pals.Snap88, highlight = NULL) {
     require(ggplot2)
     require(ggpubr)
     require(threejs)
@@ -396,7 +382,7 @@ plot.ACTIONet.gene.view <- function(ACTIONet.out, top.genes = 5, CPal = NULL, bl
 }
 
 plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.attr = NULL, trans.z.threshold = -1, trans.fact = 2, 
-	node.size = 1, CPal = ACTIONet.color.bank, enrichment.table = NULL, top.features = 7, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", threeD = FALSE, title = "ACTIONet") {
+	node.size = 1, CPal = Pals.Snap88, enrichment.table = NULL, top.features = 7, blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH", threeD = FALSE, title = "ACTIONet") {
     require(plotly)
     require(ACTIONet)
     
@@ -536,7 +522,7 @@ plot.ACTIONet.interactive <- function(ACTIONet.out, labels = NULL, transparency.
     
 }
 
-plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, imputation = F, alpha_val = 0.85, node.size = 3, CPal = ACTIONet.color.bank) {
+plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, imputation = F, alpha_val = 0.85, node.size = 3, CPal = Pals.Snap88) {
     require(igraph)
     require(ACTIONet)
     require(ggpubr)

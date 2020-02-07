@@ -601,7 +601,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 }
 
 
-map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale = F) {
+map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale = T) {
     if( core == T ) {
 		cell.scores.mat = Matrix::t(ACTIONet.out$unification.out$H.core)
 		
@@ -615,11 +615,11 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     }
 
 	if(scale == T) {
-		Enrichment.scaled = doubleNorm(Enrichment)
+		Z = (Enrichment - mean(as.numeric(Enrichment))) / sd(as.numeric(Enrichment))
+		Z[Z > 3] = 3
+		Z[Z < -3] = -3
+		Enrichment.scaled = exp(Z)
 	} else {
-		if ((max(Enrichment) > 100)) {
-			Enrichment = log1p(Enrichment)
-		}		
 		Enrichment.scaled = Enrichment
 	}
     
@@ -631,7 +631,7 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
 }
 	
 annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, scale = T) {
-    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = F)
+    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = T)
     
     cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
     names(cell.Labels) = colnames(cell.Enrichment.mat)[cell.Labels]
@@ -749,7 +749,10 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
         
         sub.cn = coreness(sub.ACTIONet)
 
-        pr.out = batchPR(as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix'), U = as.matrix(sub.cn/sum(sub.cn)))
+		G = as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix')
+		U = matrix(sub.cn/sum(sub.cn), nrow = length(V(sub.ACTIONet)))
+		pr.out = PageRank_iter(G, as(U, 'sparseMatrix'), alpha = 0.85, max_it = 5)
+		
         sub.cn = pr.out*length(pr.out)
 
         if(length(sub.cn) == 1) {

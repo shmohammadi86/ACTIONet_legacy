@@ -211,6 +211,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// PageRank_iter
+mat PageRank_iter(sp_mat& G, sp_mat& X0, double alpha, int max_it, int thread_no);
+RcppExport SEXP _ACTIONet_PageRank_iter(SEXP GSEXP, SEXP X0SEXP, SEXP alphaSEXP, SEXP max_itSEXP, SEXP thread_noSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< sp_mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< sp_mat& >::type X0(X0SEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_it(max_itSEXP);
+    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
+    rcpp_result_gen = Rcpp::wrap(PageRank_iter(G, X0, alpha, max_it, thread_no));
+    return rcpp_result_gen;
+END_RCPP
+}
+// MWM
+mat MWM(mat& G);
+RcppExport SEXP _ACTIONet_MWM(SEXP GSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type G(GSEXP);
+    rcpp_result_gen = Rcpp::wrap(MWM(G));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sweepcut
+vec sweepcut(sp_mat& A, vec s);
+RcppExport SEXP _ACTIONet_sweepcut(SEXP ASEXP, SEXP sSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< sp_mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< vec >::type s(sSEXP);
+    rcpp_result_gen = Rcpp::wrap(sweepcut(A, s));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_reduceGeneExpression", (DL_FUNC) &_ACTIONet_reduceGeneExpression, 4},
@@ -228,6 +266,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_assessFeatureSets", (DL_FUNC) &_ACTIONet_assessFeatureSets, 3},
     {"_ACTIONet_phenotypeEnrichment", (DL_FUNC) &_ACTIONet_phenotypeEnrichment, 3},
     {"_ACTIONet_update_layout_2D", (DL_FUNC) &_ACTIONet_update_layout_2D, 4},
+    {"_ACTIONet_PageRank_iter", (DL_FUNC) &_ACTIONet_PageRank_iter, 5},
+    {"_ACTIONet_MWM", (DL_FUNC) &_ACTIONet_MWM, 1},
+    {"_ACTIONet_sweepcut", (DL_FUNC) &_ACTIONet_sweepcut, 2},
     {NULL, NULL, 0}
 };
 

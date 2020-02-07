@@ -41,28 +41,6 @@ map.clusters <- function(Labels, clusters) {
     return(updated.Labels)
 }
 
-
-smooth.archetype.footprint <- function(ACTIONet.out, alpha_val = 0.9, thread_no = 8) {
-    H.norm = as(t(ACTIONet.out$reconstruct.out$H_stacked), "dgTMatrix")
-    cs = Matrix::colSums(H.norm)
-    cs[cs == 0] = 1
-    H.norm = as.matrix(sparseMatrix(i = H.norm@i + 1, j = H.norm@j + 1, x = H.norm@x/cs[H.norm@j + 1], dims = dim(H.norm)))
-    
-    pr.scores = batchPR(G = ACTIONet.out$build.out$ACTIONet, H.norm, alpha = alpha_val, thread_no = thread_no)
-    
-    arch.projections = apply(pr.scores, 2, function(x) {
-        cond = sweepcut(ACTIONet.out$build.out$ACTIONet, x)
-        idx = which.min(cond)
-        
-        perm = order(x, decreasing = TRUE)
-        x[perm[(idx + 1):length(x)]] = 0
-        
-        return(x)
-    })
-    
-    return(arch.projections)
-}
-
 impute.geneset.activity <- function(ACTIONet.out, sce, genes, alpha_val = 0.9, thread_no = 8) {
     imputed.gene.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, genes, alpha_val, thread_no, prune = FALSE, rescale = FALSE)
     

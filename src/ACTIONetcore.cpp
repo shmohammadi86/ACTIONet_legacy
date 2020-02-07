@@ -141,3 +141,30 @@ mat update_layout_2D(mat coors,
     return updated_coors;
 }
 
+
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat PageRank_iter(sp_mat &G, sp_mat &X0, double alpha = 0.85, int max_it = 3, int thread_no = 8) {	
+	mat PR = ACTIONetcore::PR_iter (G, X0, alpha, max_it, thread_no);
+
+    return PR;
+}
+
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat MWM(mat &G) {	
+	mat G_matched = ACTIONetcore::MWM(G);
+
+    return G_matched;
+}
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+vec sweepcut(sp_mat &A, vec s) {
+    vec conductance = ACTIONetcore::sweepcut(A, s);
+
+    return conductance;
+}
+

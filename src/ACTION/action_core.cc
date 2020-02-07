@@ -305,7 +305,7 @@ namespace ACTION {
 		//for(int kk = k_min; kk <= k_max; kk++) {
 		ParallelFor(k_min, k_max+1, numThreads, [&](size_t kk, size_t threadId) {			
 			total++;
-			printf("\t%d/%d\n", total, k_max-k_min+1);
+			printf("\tk = %d\n", total);
 			SPA_results SPA_res = SPA(X_r, kk);
 			trace.selected_cols[kk] = SPA_res.selected_columns;
 			

@@ -61,3 +61,15 @@ update_layout_2D <- function(coors, compactness_level = 50L, n_epochs = 100L, th
     .Call(`_ACTIONet_update_layout_2D`, coors, compactness_level, n_epochs, thread_no)
 }
 
+PageRank_iter <- function(G, X0, alpha = 0.85, max_it = 3L, thread_no = 8L) {
+    .Call(`_ACTIONet_PageRank_iter`, G, X0, alpha, max_it, thread_no)
+}
+
+MWM <- function(G) {
+    .Call(`_ACTIONet_MWM`, G)
+}
+
+sweepcut <- function(A, s) {
+    .Call(`_ACTIONet_sweepcut`, A, s)
+}
+

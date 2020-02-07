@@ -99,7 +99,13 @@ namespace ACTIONetcore {
 
 	mat assessFeatureSets(sp_mat &S, field<uvec> feature_sets, int rand_perm);
 	
-	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);		
+	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);	
+	
+	// Basic network algorithms
+	mat PR_iter(sp_mat &G, sp_mat &X0, double alpha, int max_it, int thread_no);
+	vec sweepcut(sp_mat &A, vec s);
+	mat MWM(mat &G);
+
 }
 
 

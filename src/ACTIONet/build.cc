@@ -171,7 +171,7 @@ namespace ACTIONetcore {
 		
 		sp_mat G(sample_no, sample_no);		
 		//for(int v = 0; v < sample_no; v++) {				
-		ParallelFor(0, sample_no, thread_no, [&](size_t v, size_t threadId) {
+		ParallelFor(0, sample_no, 1, [&](size_t v, size_t threadId) {
 			vec delta = Delta.col(v);		
 					
 			//uvec rows = find(delta > 0, 1, "last");
