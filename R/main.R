@@ -299,7 +299,7 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     return(ACTIONet.out.pruned)
 }
 
-cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL) {
+cluster.ACTIONet.using.archetypes <- function(ACTIONet.out, annotation.name = NULL) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 		return(ACTIONet.out)
@@ -459,8 +459,7 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
         gg = matched.genes
     }
     
-    print(dim(G))
-    print(dim(U))
+
     G = ACTIONet.out$build.out$ACTIONet
 	#imputed.gene.expression = batchPR(G, as.matrix(U), alpha_val, thread_no)
 	imputed.gene.expression = PageRank_iter(G, as(U, 'sparseMatrix'), alpha_val, max_it)

@@ -27,7 +27,7 @@ ACTIONet uses [SingleCellExperiment (SCE)](https://www.bioconductor.org/packages
 ` **Scanpy**: Use [RPy2](https://github.com/theislab/anndata2ri) to convert from AnnData to SingleCellExperiment.
 
 ## Running ACTIONet
-Running ACTIONet consists of two consecutive steps: (1) **Reduction**, and (2) **ACTIONet construction**
+Running ACTIONet consists of two consecutive steps: (1) **Reduction**, and (2) **ACTIONet Construction**
 
 ### Reduction
 In this step, we preprocess the single-cell profile, stored in `SCE` format, to be compatible with the ACTIONet framework. This allows for usage of various -omics profiles, as well as to do simultaneous batch-correction (optional). For sc/sn-RNASeq, there are two main options for reduction:

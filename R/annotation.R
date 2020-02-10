@@ -630,7 +630,7 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     return(cell.Enrichment.mat)
 }
 	
-annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, scale = T) {
+annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, annotation.name = NULL, scale = T, core = T) {
     cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = T)
     
     cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
@@ -835,21 +835,43 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
 }
 
 
-suggest.markers <- function(ACTIONet.out, min.enrichment = 3) {
-	if(!exists("CellMarkerDB_human")) {
-		data("CellMarkerDB_human")
+suggest.markers <- function(ACTIONet.out, min.enrichment = 2, DB = "PanglaoDB", species = "human", plot = T) {
+	if(DB == "PanglaoDB") {
+		if(tolower(species) == "human") {
+			data("PanglaoDB_human_markers")
+			GS = CellMarkerDB_human
+		} else if(tolower(species) == "mouse") {
+			data("PanglaoDB_mouse_markers")
+			GS = CellMarkerDB_mouse		
+		} else {
+			message("Unknown species")
+			return
+		}
+	} else if(DB == "CellMarkerDB") {
+		if(tolower(species) == "human") {
+			data("CellMarkerDB_human_markers")
+			GS = CellMarkerDB_human_markers
+		} else if(tolower(species) == "mouse") {
+			data("CellMarkerDB_mouse_markers")
+			GS = CellMarkerDB_mouse_markers		
+		} else {
+			message("Unknown species")
+			return
+		}
+	} else {
+		message("Unknon database selected")
+		return
 	}
-	marker.genes = apply(CellMarkerDB_human, 2, function(x) rownames(CellMarkerDB_human)[x > 0])
 	
-	Enrichment = geneset.enrichment.archetype(ACTIONet.out, CellMarkerDB_human)
 
-	X = as(NetLibR::MWM_hungarian(Enrichment), 'dgTMatrix')
-	jj = X@j+1
-	matched.genesets = jj[order(X@i)]
-	mask = X@x[order(X@i)] >= min.enrichment
-	matched.genesets = matched.genesets[mask]
-	
-	selected.markersets = marker.genes[matched.genesets]
-	
-	return(selected.markersets)
+	En = geneset.enrichment.archetype(ACTIONet.out, GS)
+	En[En < min.enrichment] = 0
+	colnames(En) = paste("A", 1:ncol(En), sep="")
+	W = as(MWM(En), 'dgTMatrix')
+	M = En[W@i+1, W@j+1]
+	if(plot == T) {
+		Heatmap(M, rect_gp = gpar(col = NA), cluster_rows = F, cluster_columns = F)
+	}
+	out = list(markers = GS[W@i+1], match.scores = M)
+	return(out)
 }

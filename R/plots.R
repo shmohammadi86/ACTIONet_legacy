@@ -571,9 +571,9 @@ plot.individual.gene <- function(ACTIONet.out, annotation.name, sce, gene.name, 
 }
 
 
-plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", prune = F, alpha_val = 0.5, nonparameteric = FALSE, highlight = NULL) {
+plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma", title = "", alpha_val = 0.85, nonparameteric = FALSE, highlight = NULL) {
 
-    node.size = node.size * 0.5
+    node.size = node.size * 0.3
 
     if (is.igraph(ACTIONet.out)) 
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
@@ -602,11 +602,11 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
     x[x < 0] = 0
 	if(max(x) > 50)
 		x = log1p(x)
+
+	if(alpha_val > 0) {
+		x = as.numeric(PageRank_iter(ACTIONet.out$build.out$ACTIONet, as(x, 'sparseMatrix')))
+	}
 	
-    if (prune == TRUE) {
-        x = prune.cell.scores(ACTIONet.out, x, alpha_val = 0, transform = FALSE)
-    }
-    
     if (nonparameteric == TRUE) {
         vCol = scales::col_numeric(Pal_grad, domain = NULL, na.color = NA.col)(rank(x))
     } else {
@@ -630,7 +630,7 @@ plot.ACTIONet.gradient <- function(ACTIONet.out, x, transparency.attr = NULL, tr
 	
 }
 
-visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  alpha_val = 0, export_path = NA, prune = FALSE, highlight = NULL) {
+visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr = NULL, trans.z.threshold = -0.5, trans.fact = 3, node.size = 1, CPal = "magma",  export_path = NA, alpha_val = 0.85, highlight = NULL) {
     require(igraph)
     
     
@@ -645,7 +645,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
 	}
     
     if(alpha_val > 0)
-		imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, prune = FALSE, alpha_val = alpha_val)
+		imputed.marker.expression = impute.genes.using.ACTIONet(ACTIONet.out, sce, all.marker.genes, alpha_val = alpha_val)
 	else {
 		imputed.marker.expression = Matrix::t(assays(sce)[["logcounts"]])
 	}
@@ -660,7 +660,7 @@ visualize.markers <- function(ACTIONet.out, sce, marker.genes, transparency.attr
         
         x = imputed.marker.expression[, gene]
 
-		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = CPal, title = gene, prune = prune, alpha_val = alpha_val, highlight = highlight)
+		plot.ACTIONet.gradient(ACTIONet.out, x, transparency.attr, trans.z.threshold, trans.fact, node.size, CPal = CPal, title = gene, alpha_val = alpha_val, highlight = highlight)
     })
 }
 

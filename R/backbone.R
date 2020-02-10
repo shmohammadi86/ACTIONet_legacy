@@ -117,7 +117,7 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
 }
 
 unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, 
-    thread_no = 8, sce.data.attr = "logcounts") {
+    thread_no = 8, sce.data.attr = "logcounts", plot = F) {
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")
@@ -127,31 +127,29 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     
     selected.states = which(min.cells <= Matrix::colSums(C > 0))
     
-    A = as.matrix(cor(W_r[, selected.states]))
-    diag(A) = 0
+    # A = as.matrix(cor(W_r[, selected.states]))
+    # diag(A) = 0
+    # A[A < 0.8] = 0
+    # Heatmap(A)
     
-    if(!is.na(min.cor)) {
-		A[A < min.cor] = 0
-	} else {
-		thresholds = seq(0.8, 1, by = 0.01)
-		cc.counts = sapply(thresholds, function(threshold) {
-			CC.pruned = A
-			CC.pruned[CC.pruned < threshold] = 0
-			subG = graph_from_adjacency_matrix(CC.pruned, weighted = T, mode = "undirected")
-			return(components(subG)$no)
-		})
-
-		x = cc.counts# - min(cc.counts)
-		z = (x - median(x)) / mad(x)
-		min.cor = thresholds[min(which(z > 3)) - 1]
-		R.utils::printf("Min. correlation is set to: %.2f\n", min.cor)
-		A[A < min.cor] = 0		
+    # B = C
+    # B[B > 0] = 1
+    # B@x = rep(1, length(B@x))
+    
+    PR = PageRank_iter(G, X0 = as(C[, selected.states], 'sparseMatrix'), alpha = alpha_val)
+	build.out = buildAdaptiveACTIONet(PR)	
+	backbone = as.matrix(build.out$ACTIONet)
+	# backbone[backbone < 0.5] = 0
+	
+	if(plot == T) {
+		ComplexHeatmap::Heatmap(backbone)	
 	}
+	
+	modules = unsigned_cluster(as(backbone, 'sparseMatrix'))
+	R.utils::printf("# cell states = %d\n", length(unique(modules)))
     
-    
-    print("Identify equivalent cell state classes")
-    set.seed(0)
-    modules = unsigned_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)
+#    set.seed(0)
+#    modules = unsigned_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)
     
     print("Construct reduced multi-resolution cell state decomposition")
     IDX = split(1:length(modules), modules)
@@ -194,7 +192,7 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     
     res = list(C.core = C.core, W.core = W.core, H.core = H.core, cellstates.core = cellstates.core, 
         DE.core = DE.core, assignments.core = assignments.core, assignments.confidence.core = assignments.confidence.core, anchor.cells.core = anchor.cells.core, 
-        equivalent.classes.core = equivalent.cellstates.core, dependency.graph = A, selected.states = selected.states, Pal = Pal)
+        equivalent.classes.core = equivalent.cellstates.core, backbone.graph = backbone, selected.states = selected.states, Pal = Pal)
 
     
     return(res)
