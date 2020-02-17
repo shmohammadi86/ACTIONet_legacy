@@ -73,3 +73,7 @@ sweepcut <- function(A, s) {
     .Call(`_ACTIONet_sweepcut`, A, s)
 }
 
+computeFullSim <- function(H, thread_no = 8L) {
+    .Call(`_ACTIONet_computeFullSim`, H, thread_no)
+}
+

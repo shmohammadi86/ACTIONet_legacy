@@ -435,7 +435,7 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     if (is.matrix(sce) | is.sparseMatrix(sce)) {
 		A = as(sce, "sparseMatrix")
     } else {        
-		A = as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix")
+		A = as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "dgTMatrix")
     }
     
     print("Binarize matrix")
@@ -455,7 +455,8 @@ assess.feature.specificity <- function(sce, X, sce.data.attr = "logcounts") {
     Gamma = apply(X, 1, function(x) x * beta)
     
     print("Computing observation statistics")
-    Obs = as.matrix(Matrix::t(X %*% Matrix::t(A)))	
+    #Obs = as.matrix(Matrix::t(X %*% Matrix::t(A)))	
+    Obs = as.matrix(A %*% Matrix::t(X))	
     
 
     print("Computing expectation statistics")

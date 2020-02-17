@@ -90,6 +90,7 @@ namespace ACTIONetcore {
 		mat backbone; // archetype x archetype graph (after potentially removing hub archetypes).
 	};	
 
+	mat computeFullSim(mat &H, int thread_no);
 	field<sp_mat> buildAdaptiveACTIONet(mat &H_stacked, double LC, double M, double ef_construction, double ef, int thread_no, int sym_method);
 	
 	field<mat> layoutACTIONet(sp_mat &G, mat &S_r, int compactness_level, unsigned int n_epochs, int thread_no);	

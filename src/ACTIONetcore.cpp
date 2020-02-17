@@ -168,3 +168,13 @@ vec sweepcut(sp_mat &A, vec s) {
     return conductance;
 }
 
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat computeFullSim(mat &H, int thread_no=8) {	
+    mat Sim = ACTIONetcore::computeFullSim(H, thread_no);
+
+    return Sim;
+}
+
+
+	

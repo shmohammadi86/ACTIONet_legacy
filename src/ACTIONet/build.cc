@@ -61,8 +61,64 @@ inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn
 }
 
 namespace ACTIONetcore {
+    double Sim(const double *pVect1, const double *pVect2, const double *log_vec, int N) {        
+		double half = 0.5;
+		
+		double sum1 = 0, sum2 = 0;
+		for (size_t i = 0; i < N; i++) {
+			double p = pVect1[i];
+			double q = pVect2[i];
+			double m = (p + q)*half;
+
+			int p_idx = (int)floor(p *1000000.0);
+			int q_idx = (int)floor(q *1000000.0);
+			int m_idx = (int)floor(m *1000000.0);
+
+			double lg_p = log_vec[p_idx];
+			double lg_q = log_vec[q_idx];
+			double lg_m = log_vec[m_idx];
+
+			sum1 += (p * lg_p) + (q * lg_q);
+			sum2 +=  m * lg_m;		  
+		}
+        
+        double JS = std::max(half*sum1 - sum2, 0.0);
+        
+		return (double) (1.0 - sqrt(JS));
+	}
+	
+	
+	mat computeFullSim(mat &H, int thread_no) {	
+		double log_vec[1000001];
+		for(register int i = 0; i <= 1000000; i++) {
+			log_vec[i] = (double)log2((double)i / 1000000.0);
+		}
+		log_vec[0] = 0;		
+		
+
+
+		H = clamp(H, 0, 1);
+		H = normalise(H, 1, 0); // make the norm (sum) of each column 1			
+
+		int sample_no = H.n_cols;		
+		int dim = H.n_rows;
+		printf("sample # = %d, dim = %d\n", sample_no, dim);
+
+		mat G = zeros(sample_no, sample_no);		
+		ParallelFor(0, sample_no, thread_no, [&](size_t i, size_t threadId) {
+			for(register int j = 0; i < sample_no; i++) {
+				G(i, j) = Sim(H.colptr(i), H.colptr(j), log_vec, dim);
+			}
+		});
+		
+		G = clamp(G, 0.0, 1.0); 
+		
+		return(G);
+	}	
+		
 	// k^{*}-Nearest Neighbors: From Global to Local (NIPS 2016)
 	field<sp_mat> buildAdaptiveACTIONet(mat &H_stacked, double LC = 1.0, double M = 16, double ef_construction = 200, double ef = 10, int thread_no=8, int sym_method = ACTIONet_AND) {
+		field<sp_mat> output(2);
 
 		printf("Building adaptive ACTIONet (LC = %.2f)\n", LC);
 
@@ -86,7 +142,8 @@ namespace ACTIONetcore {
 			
 		});
 
-
+		
+		
 		mat idx = zeros(sample_no, kNN+1);
 		mat dist = zeros(sample_no, kNN+1);
 //		for(int i = 0; i < sample_no; i++) {
@@ -107,38 +164,14 @@ namespace ACTIONetcore {
 			}
 
 		});
-
 		
-/*
-		for(int j = 0; j < max_elements; j++) {
-			appr_alg->addPoint(H_stacked.colptr(j), static_cast<size_t>(j));
-		}
-
-		mat idx = zeros(sample_no, kNN+1);
-		mat dist = zeros(sample_no, kNN+1);
-		for(int i = 0; i < sample_no; i++) {
-			std::priority_queue<std::pair<double, hnswlib::labeltype>> result = appr_alg->searchKnn(H_stacked.colptr(i), kNN+1);		
-			
-			if (result.size() != (kNN+1)) {
-			  printf("Unable to find %d results. Probably ef (%f) or M (%d) is too small\n", kNN, ef, M);
-			}
-			
-			for (size_t j = 0; j <= kNN; j++) {
-				auto &result_tuple = result.top();
-				dist(i, kNN-j) = result_tuple.first;
-				idx(i, kNN-j) = result_tuple.second;
-				
-				result.pop();
-			}
-
-		}
-*/
 		
 		delete(appr_alg);
 		delete(space);
 
 		dist = clamp(dist, 0.0, 1.0); 
 		idx = clamp(idx, 0, sample_no - 1);
+
 		
 		printf("\tConstructing adaptive-nearest neighbor graph ... \n");
 		mat Delta;
@@ -188,7 +221,6 @@ namespace ACTIONetcore {
 		});
 		printf("\tdone\n");
 		
-
 		
 		printf("\tFinalizing network ... ");
 		G.replace(datum::nan, 0);  // replace each NaN with 0
@@ -211,7 +243,6 @@ namespace ACTIONetcore {
 		
 		sp_mat G_asym = normalise(G, 1, 0);
 		
-		field<sp_mat> output(2);
 		output(0) =	G_sym;
 		output(1) = G_asym;
 		

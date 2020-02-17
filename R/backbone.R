@@ -116,41 +116,25 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
     return(ht)
 }
 
-unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, 
-    thread_no = 8, sce.data.attr = "logcounts", plot = F) {
+unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, thread_no = 8, sce.data.attr = "logcounts", plot = F, use.ACTIONet = F) {
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")
     S_r = t(reducedDims(sce)[[reduction_slot]])
     C = ACTIONet.out$reconstruct.out$C_stacked
+    Ht = t(ACTIONet.out$reconstruct.out$H_stacked)
+
     W_r = S_r %*% C
     
     selected.states = which(min.cells <= Matrix::colSums(C > 0))
-    
-    # A = as.matrix(cor(W_r[, selected.states]))
-    # diag(A) = 0
-    # A[A < 0.8] = 0
-    # Heatmap(A)
-    
-    # B = C
-    # B[B > 0] = 1
-    # B@x = rep(1, length(B@x))
-    
-    PR = PageRank_iter(G, X0 = as(C[, selected.states], 'sparseMatrix'), alpha = alpha_val)
-	build.out = buildAdaptiveACTIONet(PR)	
-	backbone = as.matrix(build.out$ACTIONet)
-	# backbone[backbone < 0.5] = 0
+
+	A = as.matrix(cor(W_r[, selected.states]))
+	diag(A) = 0
 	
-	if(plot == T) {
-		ComplexHeatmap::Heatmap(backbone)	
-	}
-	
-	modules = unsigned_cluster(as(backbone, 'sparseMatrix'))
+	modules = signed_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)    
 	R.utils::printf("# cell states = %d\n", length(unique(modules)))
-    
-#    set.seed(0)
-#    modules = unsigned_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)
-    
+
+ 
     print("Construct reduced multi-resolution cell state decomposition")
     IDX = split(1:length(modules), modules)
     C.core = sapply(IDX, function(idx) {
@@ -163,15 +147,21 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     W.core = S_r %*% C.core
     H.core = runsimplexRegression(W.core, S_r)
     cellstates.core = assays(sce)[[sce.data.attr]] %*% C.core
+
     
-    ## DE stuff
+	# Compute backbone  
+    print("Computing backbone")    
+	PR = PageRank_iter(G, X0 = as(Matrix::t(H.core), 'sparseMatrix'), alpha = alpha_val)
+	backbone = ACTIONet::computeFullSim(PR, thread_no = 8)
+
+    
+        
+    ## Compute DE
     print("Compute differential expression")
-    
-    ### Official DE
     DE.core = assess.feature.specificity(sce, H.core, sce.data.attr = sce.data.attr)
     
-    print("Assign cells to cell states")
     ## Cell assignments
+    print("Assign cells to cell states")
     assignments.core = apply(H.core, 2, which.max)
     assignments.confidence.core = apply(H.core, 2, max)
 	names(assignments.core) = names(assignments.confidence.core) = ACTIONet.out$log$cells    

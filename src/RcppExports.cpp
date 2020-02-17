@@ -249,6 +249,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// computeFullSim
+mat computeFullSim(mat& H, int thread_no);
+RcppExport SEXP _ACTIONet_computeFullSim(SEXP HSEXP, SEXP thread_noSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type H(HSEXP);
+    Rcpp::traits::input_parameter< int >::type thread_no(thread_noSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeFullSim(H, thread_no));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_reduceGeneExpression", (DL_FUNC) &_ACTIONet_reduceGeneExpression, 4},
@@ -269,6 +281,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ACTIONet_PageRank_iter", (DL_FUNC) &_ACTIONet_PageRank_iter, 5},
     {"_ACTIONet_MWM", (DL_FUNC) &_ACTIONet_MWM, 1},
     {"_ACTIONet_sweepcut", (DL_FUNC) &_ACTIONet_sweepcut, 2},
+    {"_ACTIONet_computeFullSim", (DL_FUNC) &_ACTIONet_computeFullSim, 2},
     {NULL, NULL, 0}
 };
 

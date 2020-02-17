@@ -787,7 +787,7 @@ plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, 
 
 
 	set.seed(0)
-	CC = cor(as.matrix(Matrix::t(Avg.profile)))
+	CC = cor(as.matrix(Matrix::t(A[markers, ])))
 	CC[is.na(CC)] = 0
 	D = as.dist(1-CC)
 	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
