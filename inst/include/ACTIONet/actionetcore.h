@@ -1,7 +1,6 @@
 #ifndef ACTIONETCORE_H
 #define ACTIONETCORE_H
 
-#include <omp.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -91,12 +90,9 @@ namespace ACTIONetcore {
 		mat backbone; // archetype x archetype graph (after potentially removing hub archetypes).
 	};	
 
-	mat computeFullDist(mat &H_stacked, int thread_no, int verbose);
-	sp_mat computeNearestDist(mat &H_stacked, int kNN, int thread_no);
-	field<mat> computeNearestDist_edgeList(mat &H_stacked, int kNN, int thread_no);
-	field<sp_mat> buildACTIONet(mat &H_stacked, int kNN, int thread_no);
-	field<sp_mat> buildAdaptiveACTIONet(mat &H_stacked, double LC, double epsilon, int thread_no, bool auto_adjust_LC, int sym_method);
-
+	mat computeFullSim(mat &H, int thread_no);
+	field<sp_mat> buildAdaptiveACTIONet(mat &H_stacked, double LC, double M, double ef_construction, double ef, int thread_no, int sym_method);
+	
 	field<mat> layoutACTIONet(sp_mat &G, mat &S_r, int compactness_level, unsigned int n_epochs, int thread_no);	
 	mat update_layout_2D(mat &coors, int compactness_level, unsigned int n_epochs, int thread_no);
 	
@@ -104,7 +100,13 @@ namespace ACTIONetcore {
 
 	mat assessFeatureSets(sp_mat &S, field<uvec> feature_sets, int rand_perm);
 	
-	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);		
+	mat phenotypeEnrichment(mat &H_stacked, mat &phenotype_associations, int rand_perm_no);	
+	
+	// Basic network algorithms
+	mat PR_iter(sp_mat &G, sp_mat &X0, double alpha, int max_it, int thread_no);
+	vec sweepcut(sp_mat &A, vec s);
+	mat MWM(mat &G);
+
 }
 
 

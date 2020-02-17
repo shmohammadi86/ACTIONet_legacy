@@ -1,7 +1,6 @@
 #ifndef ACTIONET_H
 #define ACTIONET_H
 
-#include <omp.h>
 #include <stdio.h>
 #include <vector>
 #include <string>

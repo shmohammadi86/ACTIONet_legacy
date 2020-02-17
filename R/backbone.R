@@ -116,43 +116,25 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
     return(ht)
 }
 
-unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, 
-    thread_no = 8, sce.data.attr = "logcounts") {
+unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, thread_no = 8, sce.data.attr = "logcounts", plot = F, use.ACTIONet = F) {
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")
     S_r = t(reducedDims(sce)[[reduction_slot]])
     C = ACTIONet.out$reconstruct.out$C_stacked
+    Ht = t(ACTIONet.out$reconstruct.out$H_stacked)
+
     W_r = S_r %*% C
     
     selected.states = which(min.cells <= Matrix::colSums(C > 0))
-    
-    A = as.matrix(cor(W_r[, selected.states]))
-    diag(A) = 0
-    
-    if(!is.na(min.cor)) {
-		A[A < min.cor] = 0
-	} else {
-		thresholds = seq(0.8, 1, by = 0.01)
-		cc.counts = sapply(thresholds, function(threshold) {
-			CC.pruned = CC
-			CC.pruned[CC.pruned < threshold] = 0
-			subG = graph_from_adjacency_matrix(CC.pruned, weighted = T, mode = "undirected")
-			return(components(subG)$no)
-		})
 
-		x = cc.counts# - min(cc.counts)
-		z = (x - median(x)) / mad(x)
-		min.cor = thresholds[min(which(z > 3)) - 1]
-		R.utils::printf("Min. correlation is set to: %.1f\n", min.cor)
-		A[A < min.cor] = 0		
-	}
-    
-    
-    print("Identify equivalent cell state classes")
-    set.seed(0)
-    modules = unsigned_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)
-    
+	A = as.matrix(cor(W_r[, selected.states]))
+	diag(A) = 0
+	
+	modules = signed_cluster(as(A, "sparseMatrix"), resolution_parameter = resolution)    
+	R.utils::printf("# cell states = %d\n", length(unique(modules)))
+
+ 
     print("Construct reduced multi-resolution cell state decomposition")
     IDX = split(1:length(modules), modules)
     C.core = sapply(IDX, function(idx) {
@@ -165,15 +147,21 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     W.core = S_r %*% C.core
     H.core = runsimplexRegression(W.core, S_r)
     cellstates.core = assays(sce)[[sce.data.attr]] %*% C.core
+
     
-    ## DE stuff
+	# Compute backbone  
+    print("Computing backbone")    
+	PR = PageRank_iter(G, X0 = as(Matrix::t(H.core), 'sparseMatrix'), alpha = alpha_val)
+	backbone = ACTIONet::computeFullSim(PR, thread_no = 8)
+
+    
+        
+    ## Compute DE
     print("Compute differential expression")
-    
-    ### Official DE
     DE.core = assess.feature.specificity(sce, H.core, sce.data.attr = sce.data.attr)
     
-    print("Assign cells to cell states")
     ## Cell assignments
+    print("Assign cells to cell states")
     assignments.core = apply(H.core, 2, which.max)
     assignments.confidence.core = apply(H.core, 2, max)
 	names(assignments.core) = names(assignments.confidence.core) = ACTIONet.out$log$cells    
@@ -194,7 +182,7 @@ unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor
     
     res = list(C.core = C.core, W.core = W.core, H.core = H.core, cellstates.core = cellstates.core, 
         DE.core = DE.core, assignments.core = assignments.core, assignments.confidence.core = assignments.confidence.core, anchor.cells.core = anchor.cells.core, 
-        equivalent.classes.core = equivalent.cellstates.core, dependency.graph = A, selected.states = selected.states, Pal = Pal)
+        equivalent.classes.core = equivalent.cellstates.core, backbone.graph = backbone, selected.states = selected.states, Pal = Pal)
 
     
     return(res)

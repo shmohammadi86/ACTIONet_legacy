@@ -1,6 +1,6 @@
-run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1, arch.specificity.z = -1, core.z = 3, 
+run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
-    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9) {
+    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9, unification.use.ACTIONet = T) {
     require(Matrix)
     require(igraph)
     require(ACTIONet)
@@ -26,8 +26,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     # Build ACTIONet
     set.seed(0)
-    build.out = buildAdaptiveACTIONet(H_stacked = reconstruct.out$H_stacked, thread_no = thread_no, LC = LC, epsilon = epsilon, sym_method = sym_method, 
-        auto_adjust_LC = F)
+    build.out = buildAdaptiveACTIONet(H_stacked = reconstruct.out$H_stacked, LC = LC, M = hnsw_M, hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
     
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
@@ -77,7 +76,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     print("ready to unify")
     
-    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor)    
+    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor, use.ACTIONet = unification.use.ACTIONet, resolution = 1.8)    
     
     if( ('cell.hashtag' %in% names(colData(sce))) ) {
 		cells = sce$cell.hashtag
@@ -97,7 +96,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     return(ACTIONet.out)
 }
 
-reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, epsilon = 3, LC = 1, auto_adjust_LC = FALSE, 
+reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10,
     n_epochs = 500, sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r") {
     # Build ACTIONet
     set.seed(0)
@@ -106,8 +105,8 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
         R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
         return()
     }
-    build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, thread_no = thread_no, LC = LC, auto_adjust_LC = auto_adjust_LC, 
-        epsilon = epsilon, sym_method = sym_method)
+    build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, LC = LC, M = hnsw_M, ef_construction = hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
+        
     ACTIONet.out$build.out = build.out
     
     
@@ -300,7 +299,7 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     return(ACTIONet.out.pruned)
 }
 
-cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name = NULL) {
+cluster.ACTIONet.using.archetypes <- function(ACTIONet.out, annotation.name = NULL) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
 		return(ACTIONet.out)
@@ -328,6 +327,13 @@ cluster.ACTIONet.using.decomposition <- function(ACTIONet.out, annotation.name =
 }
 
 cluster.ACTIONet <- function(ACTIONet.out, annotation.name = NULL, resolution_parameter = 0.5, arch.init = TRUE) {
+	if( !("NetLibR" %in% rownames(installed.packages())) ) {
+		message("You need to install NetLibR (https://github.com/shmohammadi86/NetLibR) first to use graph-based clustering.")
+		return
+	} else {
+		library(NetLibR)
+	}
+	
     if (arch.init == TRUE) {
 		if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
@@ -416,7 +422,7 @@ extract.archetype.associated.cells <- function(ACTIONet.out, archetype.no, alpha
 }
 
 
-impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.9, thread_no = 8, prune = FALSE, rescale = FALSE, expr.slot = "logcounts") {
+impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.85, thread_no = 8, prune = FALSE, rescale = TRUE, expr.slot = "logcounts", max_it = 5) {
     require(igraph)
     
     genes = unique(genes)
@@ -444,17 +450,20 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
         U = raw.gene.expression
         U[U < 0] = 0
         cs = Matrix::colSums(U)
-        U = as.matrix(Matrix::sparseMatrix(i = U@i + 1, j = U@j + 1, x = U@x/cs[U@j + 1], dims = dim(U)))
-        U = as.matrix(U[, cs > 0])
+        U = Matrix::sparseMatrix(i = U@i + 1, j = U@j + 1, x = U@x/cs[U@j + 1], dims = dim(U))
+        U = U[, cs > 0]
         gg = matched.genes[cs > 0]
     } else {
-        raw.gene.expression = matrix(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ])
+        raw.gene.expression = SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ]
         U = raw.gene.expression/sum(raw.gene.expression)
         gg = matched.genes
     }
     
-	imputed.gene.expression = batchPR(G, U, alpha_val, thread_no)
-    
+
+    G = ACTIONet.out$build.out$ACTIONet
+	#imputed.gene.expression = batchPR(G, as.matrix(U), alpha_val, thread_no)
+	imputed.gene.expression = PageRank_iter(G, as(U, 'sparseMatrix'), alpha_val, max_it)
+	    
     imputed.gene.expression[is.na(imputed.gene.expression)] = 0
     
     # Prune values
@@ -499,72 +508,15 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
 impute.genes.using.archetype <- function(ACTIONet.out, genes, prune = FALSE) {
     require(igraph)
     
-    genes = unique(genes)
+    genes = intersect(unique(genes), rownames(ACTIONet.out$unification.out$cellstates.core))
 
-	profile = 
-    
-    matched.genes = intersect(genes, rownames(sce))
-    matched.idx = match(matched.genes, rownames(sce))
-    
-    # Smooth/impute gene expressions
-    if (!(expr.slot %in% names(SummarizedExperiment::assays(sce)))) {
-        R.utils::printf("%s is not in assays of sce\n", expr.slot)
-    }
-    
-    if (length(matched.idx) > 1) {
-        raw.gene.expression = Matrix::t(as(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ], "dgTMatrix"))
-        U = raw.gene.expression
-        U[U < 0] = 0
-        cs = Matrix::colSums(U)
-        U = as.matrix(Matrix::sparseMatrix(i = U@i + 1, j = U@j + 1, x = U@x/cs[U@j + 1], dims = dim(U)))
-        U = as.matrix(U[, cs > 0])
-        gg = matched.genes[cs > 0]
-    } else {
-        raw.gene.expression = matrix(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ])
-        U = raw.gene.expression/sum(raw.gene.expression)
-        gg = matched.genes
-    }
-    
-	imputed.gene.expression = batchPR(G, U, alpha_val, thread_no)
-    
-    imputed.gene.expression[is.na(imputed.gene.expression)] = 0
-    
-    # Prune values
-    if (prune == TRUE) {
-        imputed.gene.expression = apply(imputed.gene.expression, 2, function(x) {
-            cond = sweepcut(ACTIONet.out$build.out$ACTIONet, x)
-            idx = which.min(cond)
-            
-            perm = order(x, decreasing = TRUE)
-            x[perm[(idx + 1):length(x)]] = 0
-            
-            return(x)
-        })
-    }
-    
-    # rescale
-    if (rescale) {
-        imputed.gene.expression = sapply(1:dim(imputed.gene.expression)[2], function(col) {
-            x = raw.gene.expression[, col]
-            y = imputed.gene.expression[, col]
-            
-            x.Q = quantile(x, 1)
-            y.Q = quantile(y, 1)
-            
-            if (y.Q == 0) {
-                return(array(0, length(x)))
-            }
-            
-            y = y * x.Q/y.Q
-            
-            y[y > max(x)] = max(x)
-            
-            return(y)
-        })
-    }
-    
-    colnames(imputed.gene.expression) = gg
-    
+	
+	Z = as.matrix(ACTIONet.out$unification.out$cellstates.core[genes, ])
+	H = ACTIONet.out$unification.out$H.core
+	
+	imputed.gene.expression = t(Z %*% H)
+	colnames(imputed.gene.expression) = genes
+	
     return(imputed.gene.expression)
 }
 

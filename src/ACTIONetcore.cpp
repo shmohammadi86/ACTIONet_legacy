@@ -20,28 +20,14 @@ void set_seed(double seed) {
     set_seed_r(std::floor(std::fabs(seed)));
 }
 
-
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-List buildACTIONet(mat &H_stacked, int kNN = 30, int thread_no = 8) {  
-    field<sp_mat> res = ACTIONetcore::buildACTIONet(H_stacked, kNN, thread_no);
 
-	List out_list;		
-	out_list["ACTIONet"] = res(0);
-	out_list["ACTIONet_asym"] = res(1);
-
-    return out_list;
-}
-
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::export]]
-List buildAdaptiveACTIONet(mat &H_stacked, double LC = 1.0, double epsilon = 0.0, int thread_no = 8, bool auto_adjust_LC = false, string sym_method = "OR") {  
-	
-	int sm = sym_method == "AND"? ACTIONet_AND:ACTIONet_OR;
-	
+List buildAdaptiveACTIONet(mat &H_stacked, double LC = 1.0, double M = 16, double ef_construction = 200, double ef = 10, int thread_no=4, string sym_method = "OR") {
+	int sm = sym_method == "AND"? ACTIONet_AND:ACTIONet_OR;	
 	printf("Sym method: %s (%d)\n", sym_method.c_str(), sm);
 		
-    field<sp_mat> res = ACTIONetcore::buildAdaptiveACTIONet(H_stacked, LC, epsilon, thread_no, auto_adjust_LC, sm);
+    field<sp_mat> res = ACTIONetcore::buildAdaptiveACTIONet(H_stacked, LC, M, ef_construction, ef, thread_no, sm);
 
 	List out_list;		
 	out_list["ACTIONet"] = res(0);
@@ -155,23 +141,40 @@ mat update_layout_2D(mat coors,
     return updated_coors;
 }
 
+
+
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-List computeNearestDist_edgeList(mat &H_stacked, double kNN, int thread_no = 8) {  	
-    field<mat> NN = ACTIONetcore::computeNearestDist_edgeList(H_stacked, kNN, thread_no);
-    
-	List out_list;		
-	out_list["idx"] = NN(0);
-	out_list["dist"] = NN(1);
+mat PageRank_iter(sp_mat &G, sp_mat &X0, double alpha = 0.85, int max_it = 3, int thread_no = 8) {	
+	mat PR = ACTIONetcore::PR_iter (G, X0, alpha, max_it, thread_no);
 
-    return out_list;
+    return PR;
+}
+
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat MWM(mat &G) {	
+	mat G_matched = ACTIONetcore::MWM(G);
+
+    return G_matched;
 }
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-mat computeFullDist(mat &H_stacked, int thread_no = 8, int verbose = 1) {  	
-    mat D = ACTIONetcore::computeFullDist(H_stacked, thread_no, verbose);
-    
-    return D;
+vec sweepcut(sp_mat &A, vec s) {
+    vec conductance = ACTIONetcore::sweepcut(A, s);
+
+    return conductance;
 }
 
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+mat computeFullSim(mat &H, int thread_no=8) {	
+    mat Sim = ACTIONetcore::computeFullSim(H, thread_no);
+
+    return Sim;
+}
+
+
+	

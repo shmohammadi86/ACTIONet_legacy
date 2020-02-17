@@ -1,5 +1,65 @@
 #include "ACTION.h"
-#include <omp.h>
+
+#include <thread>
+#include <atomic>
+
+template<class Function>
+inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn) {
+    if (numThreads <= 0) {
+        numThreads = std::thread::hardware_concurrency();
+    }
+
+    if (numThreads == 1) {
+        for (size_t id = start; id < end; id++) {
+            fn(id, 0);
+        }
+    } else {
+        std::vector<std::thread> threads;
+        std::atomic<size_t> current(start);
+
+        // keep track of exceptions in threads
+        // https://stackoverflow.com/a/32428427/1713196
+        std::exception_ptr lastException = nullptr;
+        std::mutex lastExceptMutex;
+
+        for (size_t threadId = 0; threadId < numThreads; ++threadId) {
+            threads.push_back(std::thread([&, threadId] {
+                while (true) {
+                    size_t id = current.fetch_add(1);
+
+                    if ((id >= end)) {
+                        break;
+                    }
+
+                    try {
+                        fn(id, threadId);
+                    } catch (...) {
+                        std::unique_lock<std::mutex> lastExcepLock(lastExceptMutex);
+                        lastException = std::current_exception();
+                        /*
+                         * This will work even when current is the largest value that
+                         * size_t can fit, because fetch_add returns the previous value
+                         * before the increment (what will result in overflow
+                         * and produce 0 instead of current + 1).
+                         */
+                        current = end;
+                        break;
+                    }
+                }
+            }));
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        if (lastException) {
+            std::rethrow_exception(lastException);
+        }
+    }
+
+
+}
+
+
 
 namespace ACTION {
 	void simplexRegression(double *A_ptr, int A_cols, double *B_ptr, int B_rows, int B_cols, double *X_ptr);
@@ -82,6 +142,26 @@ namespace ACTION {
 		return res;
 	}
 
+	SPA_results DCSS(sp_mat A, int k, int dim = 5) {	
+		
+		field<mat> SVD_out = frSVD(A, dim, 5, 0);
+		mat V = SVD_out(2);
+		vec normV = sum(V % V, 1); 
+		
+		printf("V:%d x %d\n", V.n_rows, V.n_cols);
+
+		
+		uvec indices = stable_sort_index(normV , "descend" );
+		
+		
+		SPA_results res;		
+		res.selected_columns = indices(span(0, k-1));		
+		res.column_norms = vec(normV(res.selected_columns));
+		
+		return res;
+	}
+
+
 	field<mat> AA (mat &A, mat &W0) {
 		double *A_ptr = A.memptr();
 		double *W0_ptr = W0.memptr();
@@ -154,8 +234,6 @@ namespace ACTION {
 		
 		mat S_r_scaled = normalise(S_r, 1);
 		 
-		omp_set_num_threads(numThreads);
-
 		printf("Iterating from k=%d ... %d\n", k_min, k_max);
 		
 		field<mat> AA_res(2,1);
@@ -220,13 +298,14 @@ namespace ACTION {
 		
 		mat X_r = normalise(S_r, 1);
 		 
-		omp_set_num_threads(numThreads);
-
 		printf("Iterating from k=%d ... %d\n", k_min, k_max);
 		
+		int total = 0;
 		field<mat> AA_res(2,1);
-		for(int kk = k_min; kk <= k_max; kk++) {
-			printf("\tK = %d\n", kk);
+		//for(int kk = k_min; kk <= k_max; kk++) {
+		ParallelFor(k_min, k_max+1, numThreads, [&](size_t kk, size_t threadId) {			
+			total++;
+			printf("\tk = %d\n", total);
 			SPA_results SPA_res = SPA(X_r, kk);
 			trace.selected_cols[kk] = SPA_res.selected_columns;
 			
@@ -237,7 +316,7 @@ namespace ACTION {
 			
 			trace.C[kk] = AA_res(0);
 			trace.H[kk] = AA_res(1);
-		}
+		});
 
 		return trace;
 	}	

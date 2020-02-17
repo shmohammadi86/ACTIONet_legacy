@@ -195,114 +195,113 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
     return(res)
 }
 
+
 annotate.archetypes.using.markers <- function(ACTIONet.out, marker.genes, rand.sample.no = 1000, core = T) {
     require(ACTIONet)
     require(igraph)
     require(Matrix)
     require(stringr)
-    
-	if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
-		marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
-	}
-	
-	if(core == T) {
-		if (("unification.out" %in% names(ACTIONet.out))) {
-			print("Using unification.out$DE.core (merged archetypes)")
-			archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])))
-		} else {
-			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
-			return()
-		}
-	} else {
-		if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
-			print("Using archetype.differential.signature (all archetypes)")
-			archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]])))
-		} else {
-			print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
-			return()
-		}
-	}      
 
-	    
+        if(is.matrix(marker.genes) | is.sparseMatrix(marker.genes)) {
+                marker.genes = apply(marker.genes, 2, function(x) rownames(marker.genes)[x > 0])
+        }
+
+        if(core == T) {
+                if (("unification.out" %in% names(ACTIONet.out))) {
+                        print("Using unification.out$DE.core (merged archetypes)")
+                        archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$unification.out$DE.core)[["significance"]])))
+                } else {
+                        print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+                        return()
+                }
+        } else {
+                if (("archetype.differential.signature" %in% names(ACTIONet.out))) {
+                        print("Using archetype.differential.signature (all archetypes)")
+                        archetype.panel = as.matrix(log1p(t(SummarizedExperiment::assays(ACTIONet.out$archetype.differential.signature)[["significance"]])))
+                } else {
+                        print("archetype.differential.signature is not in ACTIONet.out. Please run compute.archetype.feature.specificity() first.")
+                        return()
+                }
+        }     
+
+
     GS.names = names(marker.genes)
     if (is.null(GS.names)) {
         GS.names = sapply(1:length(GS.names), function(i) sprintf("Celltype %s", i))
     }
-    
+
     markers.table = do.call(rbind, lapply(names(marker.genes), function(celltype) {
         genes = marker.genes[[celltype]]
-        if (length(genes) == 0) 
+        if (length(genes) == 0)
             return(data.frame())
-        
-        
+
+
         signed.count = sum(sapply(genes, function(gene) grepl("\\+$|-$", gene)))
         is.signed = signed.count > 0
-        
+
         if (!is.signed) {
-            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype)
+            df = data.frame(Gene = (genes), Direction = +1, Celltype = celltype, stringsAsFactors = F)
         } else {
-            
-            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+
+            pos.genes = (as.character(sapply(genes[grepl("+", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene,
                 stringr::fixed("+"), ""))))
-            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene, 
+            neg.genes = (as.character(sapply(genes[grepl("-", genes, fixed = TRUE)], function(gene) stringr::str_replace(gene,
                 stringr::fixed("-"), ""))))
-            
-            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))), 
-                Celltype = celltype)
+
+            df = data.frame(Gene = c(pos.genes, neg.genes), Direction = c(rep(+1, length(pos.genes)), rep(-1, length(neg.genes))),
+                Celltype = celltype, stringsAsFactors = F)
         }
     }))
     markers.table = markers.table[markers.table$Gene %in% colnames(archetype.panel), ]
-    
+
     if (dim(markers.table)[1] == 0) {
         print("No markers are left")
         return()
-    }    
-               
+    }   
+    archetype.panel = archetype.panel[, markers.table$Gene]
+
     IDX = split(1:dim(markers.table)[1], markers.table$Celltype)
-    
+
     print("Computing significance scores")
     set.seed(0)
     Z = sapply(IDX, function(idx) {
         markers = (as.character(markers.table$Gene[idx]))
         directions = markers.table$Direction[idx]
         mask = markers %in% colnames(archetype.panel)
-        
+
         A = as.matrix(archetype.panel[, markers[mask]])
         sgn = as.numeric(directions[mask])
         stat = A %*% sgn
-        
+
         rand.stats = sapply(1:rand.sample.no, function(i) {
             rand.samples = sample.int(dim(archetype.panel)[2], sum(mask))
             rand.A = as.matrix(archetype.panel[, rand.samples])
             rand.stat = rand.A %*% sgn
         })
-        
+
         cell.zscores = as.numeric((stat - apply(rand.stats, 1, mean))/apply(rand.stats, 1, sd))
-        
+
         return(cell.zscores)
     })
-    
+
     Z[is.na(Z)] = 0
     Labels = colnames(Z)[apply(Z, 1, which.max)]
-    
+
     #L = names(marker.genes)
     #L.levels = L[L %in% Labels]
     #Labels = match(L, L.levels)
     #names(Labels) = L.levels
     #Labels = factor(Labels, levels = L)
     Labels.conf = apply(Z, 1, max)
-    
+
     names(Labels) = rownames(archetype.panel)
     names(Labels.conf) = rownames(archetype.panel)
     rownames(Z) = rownames(archetype.panel)
 
-    rownames(Z) = paste("A", 1:nrow(Z), "-", Labels, sep = "")
-    
     out.list = list(Labels = Labels, Labels.confidence = Labels.conf, Enrichment = Z, archetype.panel = archetype.panel)
-    
+
     return(out.list)
 }
-
 
 annotate.profile.using.markers <- function(profile, marker.genes, rand.sample.no = 1000, core = T) {
     require(ACTIONet)
@@ -602,7 +601,7 @@ annotate.cells.using.markers <- function(ACTIONet.out, sce, marker.genes, annota
 }
 
 
-map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale) {
+map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, scale = T) {
     if( core == T ) {
 		cell.scores.mat = Matrix::t(ACTIONet.out$unification.out$H.core)
 		
@@ -616,7 +615,10 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     }
 
 	if(scale == T) {
-		Enrichment.scaled = doubleNorm(Enrichment)
+		Z = (Enrichment - mean(as.numeric(Enrichment))) / sd(as.numeric(Enrichment))
+		Z[Z > 3] = 3
+		Z[Z < -3] = -3
+		Enrichment.scaled = exp(Z)
 	} else {
 		Enrichment.scaled = Enrichment
 	}
@@ -628,8 +630,8 @@ map.cell.scores.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, 
     return(cell.Enrichment.mat)
 }
 	
-annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, core = T, annotation.name = NULL, scale = T) {
-    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = F)
+annotate.cells.from.archetype.enrichment <- function(ACTIONet.out, Enrichment, annotation.name = NULL, scale = T, core = T) {
+    cell.Enrichment.mat = map.cell.scores.from.archetype.enrichment(ACTIONet.out, Enrichment, scale = T)
     
     cell.Labels = apply(cell.Enrichment.mat, 1, which.max)
     names(cell.Labels) = colnames(cell.Enrichment.mat)[cell.Labels]
@@ -747,7 +749,10 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
         
         sub.cn = coreness(sub.ACTIONet)
 
-        pr.out = batchPR(as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix'), U = as.matrix(sub.cn/sum(sub.cn)))
+		G = as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix')
+		U = matrix(sub.cn/sum(sub.cn), nrow = length(V(sub.ACTIONet)))
+		pr.out = PageRank_iter(G, as(U, 'sparseMatrix'), alpha = 0.85, max_it = 5)
+		
         sub.cn = pr.out*length(pr.out)
 
         if(length(sub.cn) == 1) {
@@ -830,21 +835,43 @@ update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL
 }
 
 
-suggest.markers <- function(ACTIONet.out, min.enrichment = 3) {
-	if(!exists("CellMarkerDB_human")) {
-		data("CellMarkerDB_human")
+suggest.markers <- function(ACTIONet.out, min.enrichment = 2, DB = "PanglaoDB", species = "human", plot = T) {
+	if(DB == "PanglaoDB") {
+		if(tolower(species) == "human") {
+			data("PanglaoDB_human_markers")
+			GS = CellMarkerDB_human
+		} else if(tolower(species) == "mouse") {
+			data("PanglaoDB_mouse_markers")
+			GS = CellMarkerDB_mouse		
+		} else {
+			message("Unknown species")
+			return
+		}
+	} else if(DB == "CellMarkerDB") {
+		if(tolower(species) == "human") {
+			data("CellMarkerDB_human_markers")
+			GS = CellMarkerDB_human_markers
+		} else if(tolower(species) == "mouse") {
+			data("CellMarkerDB_mouse_markers")
+			GS = CellMarkerDB_mouse_markers		
+		} else {
+			message("Unknown species")
+			return
+		}
+	} else {
+		message("Unknon database selected")
+		return
 	}
-	marker.genes = apply(CellMarkerDB_human, 2, function(x) rownames(CellMarkerDB_human)[x > 0])
 	
-	Enrichment = geneset.enrichment.archetype(ACTIONet.out, CellMarkerDB_human)
 
-	X = as(NetLibR::MWM_hungarian(Enrichment), 'dgTMatrix')
-	jj = X@j+1
-	matched.genesets = jj[order(X@i)]
-	mask = X@x[order(X@i)] >= min.enrichment
-	matched.genesets = matched.genesets[mask]
-	
-	selected.markersets = marker.genes[matched.genesets]
-	
-	return(selected.markersets)
+	En = geneset.enrichment.archetype(ACTIONet.out, GS)
+	En[En < min.enrichment] = 0
+	colnames(En) = paste("A", 1:ncol(En), sep="")
+	W = as(MWM(En), 'dgTMatrix')
+	M = En[W@i+1, W@j+1]
+	if(plot == T) {
+		Heatmap(M, rect_gp = gpar(col = NA), cluster_rows = F, cluster_columns = F)
+	}
+	out = list(markers = GS[W@i+1], match.scores = M)
+	return(out)
 }

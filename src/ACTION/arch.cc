@@ -26,7 +26,6 @@ namespace ACTION {
 			 G.addDiag(lambda2*lambda2);
 		  }
 		  // step 1: fix Z to compute Alpha
-	#pragma omp parallel for
 		  for(int i=0; i<n; ++i) {
 			 Vector<double> refColX;
 			 Vector<double> refColAlphaT;
@@ -130,7 +129,6 @@ namespace ACTION {
 
 	   for(int t=0; t<I1; ++t) {
 		  // step 1: fix Z to compute Alpha
-	#pragma omp parallel for
 		  for(int i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -177,7 +175,6 @@ namespace ACTION {
 			 G.addDiag(lambda2*lambda2);
 		  }
 		  // step 1: fix Z to compute Alpha
-	#pragma omp parallel for
 		  for(int i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -278,7 +275,6 @@ namespace ACTION {
 
 	   for(int t=0; t<I1; ++t) {
 		  // step 1: fix Z to compute Alpha
-	#pragma omp parallel for
 		  for(int i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -340,7 +336,6 @@ namespace ACTION {
 			 G.addDiag(lambda2*lambda2);
 		  }
 		  // step 1: fix Z to compute Alpha
-	#pragma omp parallel for
 		  for(int i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -495,7 +490,6 @@ namespace ACTION {
 		  Z.XtX(G);
 		  T lambda2 = 1e-5;
 		  G.addDiag(lambda2*lambda2);
-	#pragma omp parallel for private(i)
 		  for(i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -505,7 +499,6 @@ namespace ACTION {
 		  }
 		  AlphaT.toSparse(alpha);
 	   } else {
-	#pragma omp parallel for private(i)
 		  for(i=0; i<n; ++i) {
 			 Vector<T> refColX;
 			 Vector<T> refColAlphaT;
@@ -529,7 +522,6 @@ namespace ACTION {
 		  Z.XtX(G);
 		  double lambda2 = 1e-5;
 		  G.addDiag(lambda2*lambda2);
-	#pragma omp parallel for private(i)
 		  for(i=0; i<n; ++i) {
 			 Vector<double> refColX;
 			 Vector<double> refColAlphaT;
@@ -538,7 +530,6 @@ namespace ACTION {
 			 activeSetS(Z,refColX, refColAlphaT, G);
 		  }
 	   } else {
-	#pragma omp parallel for private(i)
 		  for(i=0; i<n; ++i) {
 			 Vector<double> refColX;
 			 Vector<double> refColAlphaT;

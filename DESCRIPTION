@@ -18,7 +18,7 @@ Depends: Rcpp, RcppArmadillo, NetLibR, Matrix, igraph, SingleCellExperiment, Sum
 Imports: NetLibR, Matrix, igraph, SingleCellExperiment, Matrix, igraph, SingleCellExperiment, ComplexHeatmap
 Suggests: scran
 LinkingTo: Rcpp,RcppArmadillo
-Remotes: immunogenomics/harmony,mbojan/alluvial,shmohammadi86/NetLibR
+Remotes: immunogenomics/harmony,shmohammadi86/NetLibR
 Encoding: UTF-8
 RoxygenNote: 7.0.1
 VignetteBuilder: knitr

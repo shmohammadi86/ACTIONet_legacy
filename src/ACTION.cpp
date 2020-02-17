@@ -42,7 +42,7 @@ mat runsimplexRegression(mat A, mat B) {
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-mat runSPA(mat A, int k) {	
+List runSPA(mat A, int k) {	
 
 	SPA_results res = ACTION::SPA(A, k);
 	uvec selected_columns = res.selected_columns;
@@ -51,8 +51,33 @@ mat runSPA(mat A, int k) {
 	for(int i = 0; i < k; i++) {
 		cols[i] = selected_columns[i] + 1;
 	}
+	
+
+	List out;	
+	out["selected_columns"] = cols;		
+	out["norms"] = res.column_norms;
+		
+	return out;
+}
+
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List runDCSS(sp_mat &A, int k, int dim = 10) {	
+
+	SPA_results res = ACTION::DCSS(A, k, dim);
+	uvec selected_columns = res.selected_columns;
+	
+	vec cols(k);
+	for(int i = 0; i < k; i++) {
+		cols[i] = selected_columns[i] + 1;
+	}
 			
-	return cols;
+	List out;	
+	out["selected_columns"] = cols;		
+	out["norms"] = res.column_norms;
+		
+	return out;
 }
 
 // [[Rcpp::depends(RcppArmadillo)]]

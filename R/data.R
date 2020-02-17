@@ -48,20 +48,38 @@
 #' Pre-processed cell type markers from the CellMarker database (Human)
 #' 
 #' @format:
-#'   A gene x cell-type indicator matrix in the sparseMatrix format (rownames are gene symbols)
+#'   A list of marker genes for different cell types
 #' 
 #' @source \url{http://biocc.hrbmu.edu.cn/CellMarker/}
-"CellMarkerDB_human"
+"CellMarkerDB_human_markers"
 
 
 #' Pre-processed cell type markers from the CellMarker database (Mouse)
 #' 
 #' @format:
-#'   A gene x cell-type indicator matrix in the sparseMatrix format (rownames are gene symbols)
+#'   A list of marker genes for different cell types
 #' 
 #' @source \url{http://biocc.hrbmu.edu.cn/CellMarker/}
-"CellMarkerDB_mouse"
+"CellMarkerDB_mouse_markers"
 
+
+#' Pre-processed cell type markers from the PanglaoDB database (Human)
+#' 
+#' @format:
+#'   A list of marker genes for different cell types
+#' 
+#' @source \url{https://panglaodb.se/}
+"PanglaoDB_human_markers"
+
+
+
+#' Pre-processed cell type markers from the PanglaoDB database (Mouse)
+#' 
+#' @format:
+#'   A list of marker genes for different cell types
+#' 
+#' @source \url{https://panglaodb.se/}
+"PanglaoDB_mouse_markers"
 
 
 #' Curated cell type markers for hand-selected cell types (Human)
@@ -70,26 +88,8 @@
 #'   A list of gene symbols for different tissues/cell-types
 #' 
 #' @source \url{http://compbio.mit.edu/ACTIONet/}
-"curatedMarkers_human"
+"curatedMarkers_markers_human"
 
-
-
-#' Reference profile for cell sorted PBMC
-#' 
-#' @format:
-#'   SingleCellExperiment object with rowData, colData, and metadata inside
-#' 
-#' @source \url{https://www.ncbi.nlm.nih.gov/pubmed/30726743}
-"Monaco2019"
-
-
-#' Enrichr functional pathways
-#' 
-#' @format:
-#'   A list of genesets
-#' 
-#' @source \url{https://amp.pharm.mssm.edu/Enrichr/}
-"EnrichrDB"
 
 
 #' Collection of Disease-associated genesets
@@ -108,3 +108,12 @@
 #' 
 #' @source \url{https://amp.pharm.mssm.edu/chea3/}
 "ChEA3plusDB"
+
+
+#' Human-Mouse orthologs
+#' 
+#' @format:
+#'   data.frame with two columns corresponding to human and mouse genes, respectively
+#' 
+#' @source \url{http://www.informatics.jax.org/downloads/reports/HMD_HumanPhenotype.rpt}
+"Hs2Mm"

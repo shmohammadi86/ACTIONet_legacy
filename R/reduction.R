@@ -68,6 +68,13 @@ batch.correct.sce.Harmony <- function(sce, batch.vec) {
 
 
 reduce.and.batch.correct.sce.Harmony <- function(sce, batch.vec = NULL, norm.method = "default", reduced_dim = 50, max.iter = 5) {
+	if( !("harmony" %in% rownames(installed.packages())) ) {
+		message("You need to install harmony (https://github.com/immunogenomics/harmony) first for batch-correction.")
+		return
+	} else {
+		library(harmony)
+	}
+	
     if (is.null(batch.vec)) {
         print("You need to provide the batch vector/attr")
         return(sce)

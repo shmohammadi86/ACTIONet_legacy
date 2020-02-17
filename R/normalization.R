@@ -60,7 +60,7 @@ scone.normalize <- function(sce) {
     return(sce)
 }
 
-normalize.sce <- function(sce, norm.method) {
+normalize.sce <- function(sce, norm.method = "default") {
     
     if (norm.method == "scran") {
         sce.norm = scran.normalize(sce)
