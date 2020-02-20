@@ -2,7 +2,7 @@
 # Installation
 
 ## Prerequisites 
-1. For optimal performance, link this library with the [MKL](https://software.intel.com/en-us/mkl). Please follow [this](https://software.intel.com/en-us/articles/installing-intel-free-libs-and-python-apt-repo) link to install MKL on ubuntu-like systems.
+1. For optimal performance, link this library with the [MKL](https://software.intel.com/en-us/mkl). Please follow [this](https://software.intel.com/en-us/articles/installing-intel-free-libs-and-python-apt-repo) and [this](https://github.com/eddelbuettel/mkl4deb) links to install MKL on ubuntu-like systems.
 
 2. For running batch-correction and graph-based clustering (Leiden), you need to install [Harmony](https://github.com/immunogenomics/harmony) and [NetLibR](https://github.com/shmohammadi86/NetLibR), respectively.
 
