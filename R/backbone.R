@@ -116,7 +116,7 @@ plot.backbone.heatmap <- function(backbone, annotations.df, resolution = 0.5, CP
     return(ht)
 }
 
-unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1, alpha_val = 0.5, min.cells = 5, thread_no = 8, sce.data.attr = "logcounts", plot = F, use.ACTIONet = F) {
+unify.cell.states <- function(ACTIONet.out, sce, reduction_slot = "S_r", min.cor = NA, resolution = 1.5, alpha_val = 0.5, min.cells = 5, thread_no = 8, sce.data.attr = "logcounts", plot = F, use.ACTIONet = F) {
     G = ACTIONet.out$build.out$ACTIONet
     
     print("Construct dependency map of cell states")

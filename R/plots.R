@@ -679,28 +679,38 @@ plot.enrichment.list <- function(Enrichment.list, row.title, seriation.method = 
 		names(Enrichment.list) = 1:length(Enrichment.list)
 	}
 	
-	set.seed(0)
-	CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(Matrix::t(E))))) / length(Enrichment.list)
-	CC[is.na(CC)] = 0
-	D = as.dist(1-CC)
-	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-	
-	if(shared.columns == T) {
+	if(sort.rows == T) {
 		set.seed(0)
-		CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(E)))) / length(Enrichment.list)
+		CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(Matrix::t(E))))) / length(Enrichment.list)
 		CC[is.na(CC)] = 0
 		D = as.dist(1-CC)
-		col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-		col.perms = lapply(1:length(Enrichment.list), function(i) return(col.perm))
+		row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
 	} else {
-		col.perms = lapply(Enrichment.list, function(E) {
+		row.perm = 1:nrow(Enrichment.list[[1]])
+	}
+	
+	if(sort.cols == T) {
+		if(shared.columns == T) {
 			set.seed(0)
-			CC = cor(as.matrix(E))
-			CC[is.na(CC)] = 0		
+			CC = Reduce("+", lapply(Enrichment.list, function(E) cor(as.matrix(E)))) / length(Enrichment.list)
+			CC[is.na(CC)] = 0
 			D = as.dist(1-CC)
 			col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-			return(col.perm)
-		})
+			col.perms = lapply(1:length(Enrichment.list), function(i) return(col.perm))
+		} else {
+			col.perms = lapply(Enrichment.list, function(E) {
+				set.seed(0)
+				CC = cor(as.matrix(E))
+				CC[is.na(CC)] = 0		
+				D = as.dist(1-CC)
+				col.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+				return(col.perm)
+			})
+		}
+	} else {
+		col.perms = lapply(Enrichment.list, function(E) {
+			1:ncol(E)
+		})		
 	}
 	
 	gradPal = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu")))(100)
@@ -767,7 +777,7 @@ plot.annotated.heatmap <-function(W, row.annotation, column.annotation, plot_tit
 }
 
 
-plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, markers, type = "heatmap", seriation.method = "OLO") {
+plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, markers, type = "heatmap", seriation.method = "OLO", sort.rows = T) {
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.name)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in plot.annotations.differential.heatmap: annotation.name "%s" not found\n', annotation.name)
@@ -785,12 +795,15 @@ plot.annotations.selected.genes <- function(ACTIONet.out, sce, annotation.name, 
 	A = assays(sce)$logcounts
 	Avg.profile = sapply(IDX, function(idx) Matrix::rowMeans(A[markers, idx]))
 
-
-	set.seed(0)
-	CC = cor(as.matrix(Matrix::t(A[markers, ])))
-	CC[is.na(CC)] = 0
-	D = as.dist(1-CC)
-	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	if(sort.rows == T) {
+		set.seed(0)
+		CC = cor(as.matrix(Matrix::t(A[markers, ])))
+		CC[is.na(CC)] = 0
+		D = as.dist(1-CC)
+		row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	} else {
+		row.perm = length(markers)
+	}
 	
 	set.seed(0)
 	CC = cor(as.matrix(Avg.profile))
@@ -823,10 +836,10 @@ plot.annotations.top.genes <- function(ACTIONet.out, sce, annotation.name, top.g
 		return()
     }
     X = log1p(as.matrix(SummarizedExperiment::assays(ACTIONet.out$annotations[[cl.idx]]$DE.profile)$significance))
-	rows = sort(unique(as.numeric(apply(X, 2, function(x) order(x, decreasing=T)[1:top.genes]))))
+	rows = unique(as.numeric(apply(X, 2, function(x) order(x, decreasing=T)[1:top.genes])))
 	markers = rownames(X)[rows]
 
-	plot.annotations.selected.genes(ACTIONet.out, sce = sce, annotation.name = annotation.name, markers = markers, type = type, seriation.method = seriation.method)
+	plot.annotations.selected.genes(ACTIONet.out, sce = sce, annotation.name = annotation.name, markers = markers, type = type, seriation.method = seriation.method, sort.rows = F)
 }
 
 plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", seriation.method = "OLO_complete", blacklist.pattern = "\\.|^RPL|^RPS|^MRP|^MT-|^MT|^RP|MALAT1|B2M|GAPDH") {
@@ -835,24 +848,26 @@ plot.archetype.top.genes <- function(ACTIONet.out, top.genes, type = "heatmap", 
 	if(length(filtered.rows) > 0)
 		X = X[-filtered.rows, ]
 
-	selected.rows = apply(X, 2, function(x) order(x, decreasing = T)[1:top.genes])
+	selected.rows = unique(as.numeric(apply(X, 2, function(x) order(x, decreasing = T)[1:top.genes])))
 	markers = rownames(X)[selected.rows]
 	
-	plot.archetype.selected.genes(ACTIONet.out= ACTIONet.out, selected.genes = markers, type = type, seriation.method = seriation.method)
+	plot.archetype.selected.genes(ACTIONet.out= ACTIONet.out, selected.genes = markers, type = type, seriation.method = seriation.method, sort.rows = F)
 }
 
-plot.archetype.selected.genes <- function(ACTIONet.out, selected.genes, type = "heatmap", seriation.method = "OLO") {
+plot.archetype.selected.genes <- function(ACTIONet.out, selected.genes, type = "heatmap", seriation.method = "OLO", sort.rows = T) {
 	selected.rows = match(selected.genes, rownames(ACTIONet.out$unification.out$cellstates.core))
 	
 	Avg.profile = ACTIONet.out$unification.out$cellstates.core[selected.rows, ]
 
-
-	set.seed(0)
-	CC = cor(as.matrix(Matrix::t(Avg.profile)))
-	CC[is.na(CC)] = 0
-	D = as.dist(1-CC)
-	row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
-	
+	if(sort.rows) {
+		set.seed(0)
+		CC = cor(as.matrix(Matrix::t(Avg.profile)))
+		CC[is.na(CC)] = 0
+		D = as.dist(1-CC)
+		row.perm = seriation::get_order(seriation::seriate(D, seriation.method))
+	}  else {
+		row.perm = 1:length(selected.genes)
+	}
 	set.seed(0)
 	CC = cor(as.matrix(Avg.profile))
 	CC[is.na(CC)] = 0
@@ -880,13 +895,13 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal 
 	ACTIONet = ACTIONet.out$ACTIONet
     coors = cbind(V(ACTIONet)$x, V(ACTIONet)$y)
 
-    
     if (CPal %in% c("inferno", "magma", "viridis", "BlGrRd", "RdYlBu", "Spectral")) {
 		require(viridis)
         Pal_grad = switch(CPal, inferno = viridis::inferno(500, alpha = 0.8), magma = viridis::magma(500, alpha = 0.8), viridis = viridis::viridis(500, alpha = 0.8), 
             BlGrRd = colorRampPalette(c("blue", "grey", "red"))(500), Spectral = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, 
                 name = "Spectral"))))(100), RdYlBu = (grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdYlBu"))))(100))
     } else {
+		NA.col = "#cccccc"
         Pal_grad = colorRampPalette(c(NA.col, CPal))(500)
     }	
 
@@ -899,7 +914,7 @@ plot.ACTIONet.archetype.footprint <- function(ACTIONet.out, node.size = 1, CPal 
 	if(is.null(arch.labels))
 		arch.labels = sapply(1:ncol(Ht), function(i) sprintf("Archetype %d", i))
 	 
-	par(mfrow = c(k1, k2), mar = c(0, 0, 1, 0))
+	#par(mfrow = c(k1, k2), mar = c(0, 0, 1, 0))
 	sapply(1:ncol(Ht), function(i) {
 		print(i)
 		h = Ht[, i]

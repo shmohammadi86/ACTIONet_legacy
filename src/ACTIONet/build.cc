@@ -94,19 +94,19 @@ namespace ACTIONetcore {
 			log_vec[i] = (double)log2((double)i / 1000000.0);
 		}
 		log_vec[0] = 0;		
-		
 
+		
 
 		H = clamp(H, 0, 1);
 		H = normalise(H, 1, 0); // make the norm (sum) of each column 1			
-
+		
 		int sample_no = H.n_cols;		
 		int dim = H.n_rows;
 		printf("sample # = %d, dim = %d\n", sample_no, dim);
 
 		mat G = zeros(sample_no, sample_no);		
 		ParallelFor(0, sample_no, thread_no, [&](size_t i, size_t threadId) {
-			for(register int j = 0; i < sample_no; i++) {
+			for(register int j = 0; j < sample_no; j++) {
 				G(i, j) = Sim(H.colptr(i), H.colptr(j), log_vec, dim);
 			}
 		});

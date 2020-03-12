@@ -1,6 +1,6 @@
 run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10, arch.specificity.z = -1, core.z = 3, 
     sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
-    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9, unification.use.ACTIONet = T) {
+    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9, unification.use.ACTIONet = T, unification.resolution = 1.5) {
     require(Matrix)
     require(igraph)
     require(ACTIONet)
@@ -76,7 +76,7 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     
     print("ready to unify")
     
-    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor, use.ACTIONet = unification.use.ACTIONet, resolution = 1.8)    
+    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor, use.ACTIONet = unification.use.ACTIONet, resolution = unification.resolution)    
     
     if( ('cell.hashtag' %in% names(colData(sce))) ) {
 		cells = sce$cell.hashtag

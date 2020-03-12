@@ -51,56 +51,85 @@ import.sce.from.table <- function(fname, sep = "\t", header = TRUE, prefilter = 
 }
 
 import.sce.from.10X <- function(input_path, mtx_file = "matrix.mtx.gz", feature_annotations = "features.tsv.gz", sample_annotations = "barcodes.tsv.gz", 
-    sep = "\t", header = FALSE, prefilter = FALSE, min.cell.frac.per.gene = 0.001, min.genes.per.cell = 300) {
+    sep = "\t", prefilter = FALSE, min.cell.frac.per.gene = 0.001, min.genes.per.cell = 500) {
     require(Matrix)
     require(scran)
     
-    counts = readMM(paste(input_path, mtx_file, sep = "/"))
-    feature_table = read.table(paste(input_path, feature_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
-    sample_annotations = read.table(paste(input_path, sample_annotations, sep = "/"), header = header, sep = sep, as.is = TRUE)
-
-    # Handle header
-    if(nrow(feature_table) == nrow(counts) + 1) {
-		colnames(feature_table) = feature_table[1, ]
-		feature_table = feature_table[-1, ]
+    count.file = paste(input_path, mtx_file, sep = "/")
+	if( !file.exists(count.file) ) {
+		R.utils::printf("File %s not found. Consider changing `mtx_file` or `input_path` options.", count.file)
+		return()
 	}
-    if(nrow(sample_annotations) == ncol(counts) + 1) {
-		colnames(sample_annotations) = sample_annotations[1, ]
-		sample_annotations = sample_annotations[-1, ]
+	
+    feature.file = paste(input_path, feature_annotations, sep = "/")
+    if( !file.exists(feature.file) ) {
+		R.utils::printf("File %s not found. Consider changing `mtx_file` or `input_path` options.", feature.file)
+		return()
+	}
+	
+    barcode.file = paste(input_path, sample_annotations, sep = "/")
+    if( !file.exists(barcode.file) ) {
+		R.utils::printf("File %s not found. Consider changing `mtx_file` or `input_path` options.", barcode.file)
+		return()
 	}
 
+	print("Reading counts ...")
+    counts = Matrix::readMM(count.file)
+	
     
-    if(ncol(feature_table) > 2) {
-		IDX = split(1:nrow(feature_table), feature_table$V3)
+    feature_table = read.table(feature.file, header = F, sep = sep, as.is = TRUE)
+    if(nrow(feature_table) == (nrow(counts) + 1)) {
+		rowAnnot = DataFrame(feature_table[-1, ])
+		colnames(rowAnnot) = feature_table[1, ] 
+	} else {
+		rowAnnot = DataFrame(feature_table)
+	}
+	if(ncol(rowAnnot) == 1) {
+		colnames(rowAnnot) = "Gene"
+	} else if(ncol(rowAnnot) == 2) {
+		colnames(rowAnnot) = c("ENSEMBL", "Gene")		
+	} else if(ncol(rowAnnot) == 3) {
+		colnames(rowAnnot) = c("ENSEMBL", "Gene", "Feature")		
+	}
+    
+    sample_annotations = read.table(barcode.file, header = F, sep = sep, as.is = TRUE)
+    if(ncol(sample_annotations) == (ncol(counts) + 1)) {
+		colAnnot = DataFrame(sample_annotations[-1, ])
+		colnames(colAnnot) = sample_annotations[1, ] 
+	} else {
+		colAnnot = DataFrame(sample_annotations)
+	}
+
+	# Feature-barcoding
+    if(ncol(rowAnnot) > 2) {
+		IDX = split(1:nrow(rowAnnot), rowAnnot$V3)
 		expression.counts = counts[IDX$`Gene Expression`, ]
-		gene.table = feature_table[IDX$`Gene Expression`, 1:2]    
+		gene.table = rowAnnot[IDX$`Gene Expression`, 1:2]    
 		IDX = IDX[!grepl("Gene Expression", names(IDX))]
 	} else {
 		expression.counts = counts
-		gene.table = feature_table
+		gene.table = rowAnnot
 		IDX = list()
 	}
-	
-    colnames(gene.table) = c("ENSEMBL", "SYMBOL")
-    rownames(expression.counts) = gene.table$SYMBOL    
-    colnames(expression.counts) = sample_annotations[, 1]
+
+    rownames(expression.counts) = rowAnnot[, 1]
+    colnames(expression.counts) = colAnnot[, 1]
     
     
     if (ncol(sample_annotations) > 1) {
-        sce <- SingleCellExperiment(assays = list(counts = expression.counts), colData = sample_annotations, rowData = gene.table[, 
-            -3])
+        sce <- SingleCellExperiment(assays = list(counts = expression.counts), colData = colAnnot, rowData = rowAnnot)
     } else {
-        sce <- SingleCellExperiment(assays = list(counts = expression.counts), rowData = gene.table)
+        sce <- SingleCellExperiment(assays = list(counts = expression.counts))
     }
     
     # Load additional barcoded features
     for(feature.name in names(IDX)) {
 		feature.counts = counts[IDX[[feature.name]], ]
 		
-		row.annotations = feature_table[IDX[[feature.name]], ]
+		row.annotations = rowAnnot[IDX[[feature.name]], ]
 		
-		rownames(feature.counts) = row.annotations[, 1]
-		colnames(feature.counts) = sample_annotations[, 1]
+		rownames(feature.counts) = rowAnnot[, 1]
+		colnames(feature.counts) = colAnnot[, 1]
 		
 		
 		reducedDims(sce)[[feature.name]] = Matrix::t(feature.counts)

@@ -82,6 +82,8 @@ normalize.sce <- function(sce, norm.method = "default") {
         cs = Matrix::colSums(A)
         cs[cs == 0] = 1
         B = Matrix::sparseMatrix(i = A@i + 1, j = A@j + 1, x = log1p(median(cs) * (A@x/cs[A@j + 1])), dims = dim(A))
+        rownames(B) = rownames(sce.norm)
+        colnames(B) = colnames(sce.norm)        
         SummarizedExperiment::assays(sce.norm)$logcounts = B
     }
     
