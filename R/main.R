@@ -1,42 +1,42 @@
-run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8, epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10, arch.specificity.z = -1, core.z = 3, 
-    sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3, 
-    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = T, specificity.mode = "sparse", unification.min.cor = 0.9, unification.use.ACTIONet = T) {
+run.ACTIONet <- function(sce, k_max = 30, layout.compactness = 50, thread_no = multicoreWorkers(), epsilon = 3, LC = 1.0, hnsw_M=16, hnsw_ef_construction = 200, hnsw_ef = 10, arch.specificity.z = -1, core.z = 3,
+    sce.data.attr = "logcounts", sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r", batch = NULL, batch.correction.rounds = 3,
+    batch.lambda = 1, k_min = 2, n_epochs = 500, compute.core = F, compute.signature = F, specificity.mode = "sparse", unification.min.cor = 0.9, unification.use.ACTIONet = T, unification.resolution = 1.5) {
     require(Matrix)
     require(igraph)
     require(ACTIONet)
-    
+
     if (!(sce.data.attr %in% names(SummarizedExperiment::assays(sce)))) {
         R.utils::printf("Attribute %s is not an assay of the input sce\n", sce.data.attr)
         return()
     }
-    
+
     # Run ACTION
     if (!is.null(batch)) {
         batch.vec = as.numeric(factor(batch))
-        ACTION.out = runACTION_withBatch(t(reducedDims(sce)[[reduction_slot]]), batch.vec, k_min = k_min, k_max = k_max, max_correction_rounds = batch.correction.rounds, 
+        ACTION.out = runACTION_withBatch(t(reducedDims(sce)[[reduction_slot]]), batch.vec, k_min = k_min, k_max = k_max, max_correction_rounds = batch.correction.rounds,
             lambda = batch.lambda, numThreads = thread_no)
-        
+
     } else {
         ACTION.out = runACTION(t(reducedDims(sce)[[reduction_slot]]), k_min = k_min, k_max = k_max, thread_no = thread_no)
     }
-    
+
     # Reconstruct archetypes in the original space
     reconstruct.out = reconstructArchetypes(as(SummarizedExperiment::assays(sce)[[sce.data.attr]], "sparseMatrix"), ACTION.out$C, ACTION.out$H, z_threshold = arch.specificity.z)
     rownames(reconstruct.out$archetype_profile) = rownames(sce)
-    
+
     # Build ACTIONet
     set.seed(0)
     build.out = buildAdaptiveACTIONet(H_stacked = reconstruct.out$H_stacked, LC = LC, M = hnsw_M, hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
-    
+
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
         initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
         initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
-    
+
     vis.out = layoutACTIONet(build.out$ACTIONet, S_r = initial.coordinates, compactness_level = layout.compactness, n_epochs = n_epochs)
-    
+
     # Construct igraph object
     ACTIONet = graph_from_adjacency_matrix(build.out$ACTIONet, mode = "undirected", weighted = TRUE)
     coor = vis.out$coordinates
@@ -47,37 +47,37 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
     V(ACTIONet)$y3D = coor3D[, 2]
     V(ACTIONet)$z3D = coor3D[, 3]
     V(ACTIONet)$color = rgb(vis.out$colors)
-    
-    
+
+
     arch.Lab = t(reconstruct.out$C_stacked) %*% grDevices::convertColor(color = vis.out$colors, from = "sRGB", to = "Lab")
     arch.colors = rgb(grDevices::convertColor(color = arch.Lab, from = "Lab", to = "sRGB"))
     arch.coordinates = t(reconstruct.out$C_stacked) %*% vis.out$coordinates
     arch.coordinates_3D = t(reconstruct.out$C_stacked) %*% vis.out$coordinates_3D
     arch.vis.out = list(colors = arch.colors, coordinates = arch.coordinates, coordinates_3D = arch.coordinates_3D)
-    
-    ACTIONet.out = list(ACTION.out = ACTION.out, reconstruct.out = reconstruct.out, build.out = build.out, vis.out = vis.out, ACTIONet = ACTIONet, 
+
+    ACTIONet.out = list(ACTION.out = ACTION.out, reconstruct.out = reconstruct.out, build.out = build.out, vis.out = vis.out, ACTIONet = ACTIONet,
         arch.vis.out = arch.vis.out)
-    
+
     # Add signature profile
     if(compute.signature == TRUE) {
 		signature.profile = construct.archetype.signature.profile(sce = sce, ACTIONet.out = ACTIONet.out, reduction_slot = reduction_slot)
-		ACTIONet.out$signature.profile = signature.profile    
+		ACTIONet.out$signature.profile = signature.profile
 	}
-	
+
     # Old method of computing core archetypes -obsolete
     if(compute.core == TRUE) {
 		core.out = identify.core.archetypes(ACTIONet.out, core.z)
 		ACTIONet.out$core.out = core.out
 	}
-    
+
     ACTIONet.out$archetype.differential.signature = compute.archetype.feature.specificity(ACTIONet.out, sce, mode = specificity.mode, sce.data.attr = sce.data.attr)
-    
+
     ACTIONet.out = add.archetype.labels(ACTIONet.out, k_min = k_min, k_max = k_max)
-    
+
     print("ready to unify")
-    
-    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor, use.ACTIONet = unification.use.ACTIONet, resolution = 1.8)    
-    
+
+    ACTIONet.out$unification.out = unify.cell.states(ACTIONet.out, sce, reduction_slot = reduction_slot, sce.data.attr = sce.data.attr, min.cor = unification.min.cor, use.ACTIONet = unification.use.ACTIONet, resolution = unification.resolution)
+
     if( ('cell.hashtag' %in% names(colData(sce))) ) {
 		cells = sce$cell.hashtag
 	} else if ( !is.null(colnames(sce)) ) {
@@ -90,9 +90,9 @@ run.ACTIONet <- function(sce, k_max = 20, layout.compactness = 50, thread_no = 8
 	connectivity = compute.cell.connectivity(ACTIONet.out)
     V(ACTIONet.out$ACTIONet)$connectivity = connectivity
 
-	
-    ACTIONet.out$log = list(genes = rownames(sce), cells = cells, time = Sys.time())
-    
+
+    # ACTIONet.out$log = list(genes = rownames(sce), cells = cells, time = Sys.time())
+
     return(ACTIONet.out)
 }
 
@@ -100,27 +100,27 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     n_epochs = 500, sym_method = "AND", scale.initial.coordinates = TRUE, reduction_slot = "S_r") {
     # Build ACTIONet
     set.seed(0)
-    
+
     if (!(reduction_slot %in% names(reducedDims(sce)))) {
         R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
         return()
     }
     build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, LC = LC, M = hnsw_M, ef_construction = hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
-        
+
     ACTIONet.out$build.out = build.out
-    
-    
+
+
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
         initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
         initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
-    
-    
+
+
     vis.out = layoutACTIONet(build.out$ACTIONet, S_r = initial.coordinates, compactness_level = compactness_level, n_epochs = n_epochs)
     ACTIONet.out$vis.out = vis.out
-    
+
     # Construct igraph object
     ACTIONet = graph_from_adjacency_matrix(build.out$ACTIONet, mode = "undirected", weighted = TRUE)
     coor = vis.out$coordinates
@@ -132,35 +132,35 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     V(ACTIONet)$z3D = coor3D[, 3]
     V(ACTIONet)$color = rgb(vis.out$colors)
     ACTIONet.out$ACTIONet = ACTIONet
-    
+
     arch.Lab = t(ACTIONet.out$reconstruct.out$C_stacked) %*% grDevices::convertColor(color = vis.out$colors, from = "sRGB", to = "Lab")
     arch.colors = rgb(grDevices::convertColor(color = arch.Lab, from = "Lab", to = "sRGB"))
     arch.coordinates = t(ACTIONet.out$reconstruct.out$C_stacked) %*% vis.out$coordinates
     arch.coordinates_3D = t(ACTIONet.out$reconstruct.out$C_stacked) %*% vis.out$coordinates_3D
     arch.vis.out = list(colors = arch.colors, coordinates = arch.coordinates, coordinates_3D = arch.coordinates_3D)
     ACTIONet.out$arch.vis.out = arch.vis.out
-    
-    
+
+
     return(ACTIONet.out)
 }
 
-rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, n_epochs = 500, scale.initial.coordinates = TRUE, 
+rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 8, n_epochs = 500, scale.initial.coordinates = TRUE,
     reduction_slot = "S_r") {
     # Build ACTIONet
     set.seed(0)
-    
+
     build.out = ACTIONet.out$build.out
-    
+
     # Layout ACTIONet
     if (scale.initial.coordinates == TRUE) {
         initial.coordinates = t(scale(reducedDims(sce)[[reduction_slot]]))
     } else {
         initial.coordinates = t(reducedDims(sce)[[reduction_slot]])
     }
-    
+
     vis.out = layoutACTIONet(build.out$ACTIONet, S_r = initial.coordinates, compactness_level = compactness_level, n_epochs = n_epochs)
     ACTIONet.out$vis.out = vis.out
-    
+
     # Construct igraph object
     ACTIONet = graph_from_adjacency_matrix(build.out$ACTIONet, mode = "undirected", weighted = TRUE)
     coor = vis.out$coordinates
@@ -172,14 +172,14 @@ rerun.layout <- function(ACTIONet.out, sce, compactness_level = 50, thread_no = 
     V(ACTIONet)$z3D = coor3D[, 3]
     V(ACTIONet)$color = rgb(vis.out$colors)
     ACTIONet.out$ACTIONet = ACTIONet
-    
+
     arch.Lab = t(ACTIONet.out$reconstruct.out$C_stacked) %*% grDevices::convertColor(color = vis.out$colors, from = "sRGB", to = "Lab")
     arch.colors = rgb(grDevices::convertColor(color = arch.Lab, from = "Lab", to = "sRGB"))
     arch.coordinates = t(ACTIONet.out$reconstruct.out$C_stacked) %*% vis.out$coordinates
     arch.coordinates_3D = t(ACTIONet.out$reconstruct.out$C_stacked) %*% vis.out$coordinates_3D
     arch.vis.out = list(colors = arch.colors, coordinates = arch.coordinates, coordinates_3D = arch.coordinates_3D)
     ACTIONet.out$arch.vis.out = arch.vis.out
-    
+
     return(ACTIONet.out)
 }
 
@@ -187,35 +187,35 @@ rehash.cells <- function(sce, salt = NULL) {
     if (is.null(salt)) {
         salt = as.character(Sys.time())
     }
-    
+
     h = hashid_settings(salt = salt, min_length = 8)
     cell.hashtags = sapply(1:ncol(sce), function(i) ENCODE(i, h))
     sce$cell.hashtag = cell.hashtags
-    
+
     metadata(sce)$tagging.time = time.tag
-    
+
     return(sce)
 }
 
 remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
     require(igraph)
-    
+
     if(is.character(filtered.cells)) {
 		filtered.cells = match(intersect(filtered.cells, ACTIONet.out$log$cells), ACTIONet.out$log$cells)
 	}
-    
+
     core.cells = which(rowSums(ACTIONet.out$reconstruct.out$C_stacked) > 0)
-    if (!force) 
-        selected.cells = sort(unique(union(core.cells, setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))) 
+    if (!force)
+        selected.cells = sort(unique(union(core.cells, setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells))))
 	else selected.cells = sort(unique(setdiff(1:dim(ACTIONet.out$reconstruct.out$C_stacked)[1], filtered.cells)))
-    
+
     ACTIONet.out.pruned = ACTIONet.out
-    
+
     ## Update ACTION.out
     C_trace = lapply(ACTIONet.out.pruned$ACTION.out$C, function(C) {
-        if (is.null(C)) 
+        if (is.null(C))
             return(C)
-        
+
         subC = C[selected.cells, ]
         cs = Matrix::colSums(subC)
         cs[cs == 0] = 1
@@ -223,56 +223,56 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
         return(subC)
     })
     ACTIONet.out.pruned$ACTION.out$C = C_trace
-    
+
     H_trace = lapply(ACTIONet.out.pruned$ACTION.out$H, function(H) {
-        if (is.null(H)) 
+        if (is.null(H))
             return(H)
-        
+
         subH = H[, selected.cells]
         return(subH)
     })
     ACTIONet.out.pruned$ACTION.out$H = H_trace
-    
-    
+
+
     ## Update reconstruct.out
     C_stacked.pruned = ACTIONet.out.pruned$reconstruct.out$C_stacked[selected.cells, ]
     cs = Matrix::colSums(C_stacked.pruned)
     cs[cs == 0] = 1
     C_stacked.pruned = scale(C_stacked.pruned, center = FALSE, scale = cs)
     ACTIONet.out.pruned$reconstruct.out$C_stacked = C_stacked.pruned
-    
-    
+
+
     H_stacked.pruned = ACTIONet.out.pruned$reconstruct.out$H_stacked[, selected.cells]
     ACTIONet.out.pruned$reconstruct.out$H_stacked = H_stacked.pruned
-    
+
     ## Update build.out
     ACTIONet.out$build.out$ACTIONet = ACTIONet.out$build.out$ACTIONet[selected.cells, selected.cells]
     ACTIONet.out$build.out$ACTIONet_asym = ACTIONet.out$build.out$ACTIONet_asym[selected.cells, selected.cells]
-    
+
     # Update ACTIONet
     ACTIONet.pruned = induced.subgraph(ACTIONet.out.pruned$ACTIONet, V(ACTIONet.out.pruned$ACTIONet)[selected.cells])
     ACTIONet.out.pruned$ACTIONet = ACTIONet.pruned
-    
-    
+
+
     # Update vis.out
     ACTIONet.out.pruned$vis.out$coordinates = ACTIONet.out.pruned$vis.out$coordinates[selected.cells, ]
     ACTIONet.out.pruned$vis.out$coordinates_3D = ACTIONet.out.pruned$vis.out$coordinates_3D[selected.cells, ]
     ACTIONet.out.pruned$vis.out$colors = ACTIONet.out.pruned$vis.out$colors[selected.cells, ]
-    
-    
+
+
     ACTIONet.out.pruned$build.out$ACTIONet = ACTIONet.out.pruned$build.out$ACTIONet[selected.cells, selected.cells]
     ACTIONet.out.pruned$build.out$ACTIONet_asym = ACTIONet.out.pruned$build.out$ACTIONet_asym[selected.cells, selected.cells]
-    
-    
+
+
     ## Update core.out
     ACTIONet.out.pruned$core.out$H = ACTIONet.out.pruned$core.out$H[, selected.cells]
-    
+
     # Update unification.out
     ACTIONet.out.pruned$unification.out$C.core = ACTIONet.out.pruned$unification.out$C.core[selected.cells, ]
     cs = Matrix::colSums(ACTIONet.out.pruned$unification.out$C.core)
     cs[cs == 0] = 1
     ACTIONet.out.pruned$unification.out$C.core = scale(ACTIONet.out.pruned$unification.out$C.core, center = F, scale = cs)
-    
+
     ACTIONet.out.pruned$unification.out$H.core = ACTIONet.out.pruned$unification.out$H.core[, selected.cells]
     ACTIONet.out.pruned$unification.out$assignments.core = ACTIONet.out.pruned$unification.out$assignments.core[selected.cells]
     ACTIONet.out.pruned$unification.out$assignments.confidence.core = ACTIONet.out.pruned$unification.out$assignments.confidence.core[selected.cells]
@@ -280,22 +280,22 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
 	# Update existing cell annotations
 	for(annotation.name in names(ACTIONet.out.pruned$annotations)) {
 		X = ACTIONet.out.pruned$annotations[[annotation.name]]
-		
+
 		X$Labels = X$Labels[selected.cells]
 		X$Labels.confidence = X$Labels.confidence[selected.cells]
 		X$cells = selected.cells
-		
+
 		ACTIONet.out.pruned$annotations[[annotation.name]] = X
-		
+
 		if(! is.null(X$highlight) ) {
 			ACTIONet.out.pruned = highlight.annotations(ACTIONet.out.pruned, annotation.name)
 		}
 	}
-    
+
     ## Update ACTIONet log
     ACTIONet.out.pruned$log$cells = ACTIONet.out.pruned$log$cells[selected.cells]
-    
-    
+
+
     return(ACTIONet.out.pruned)
 }
 
@@ -306,7 +306,7 @@ cluster.ACTIONet.using.archetypes <- function(ACTIONet.out, annotation.name = NU
 	}
 	clusters = as.numeric(ACTIONet.out$unification.out$assignments.core)
     names(clusters) = paste("Cluster", as.character(clusters), sep = " ")
-	
+
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -317,12 +317,12 @@ cluster.ACTIONet.using.archetypes <- function(ACTIONet.out, annotation.name = NU
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
+
 	res = list(Labels = clusters, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet.using.decomposition")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)
 	eval(parse(text=cmd))
-		
+
     return(ACTIONet.out)
 }
 
@@ -333,7 +333,7 @@ cluster.ACTIONet <- function(ACTIONet.out, annotation.name = NULL, resolution_pa
 	} else {
 		library(NetLibR)
 	}
-	
+
     if (arch.init == TRUE) {
 		if(! ('unification.out' %in% names(ACTIONet.out)) ) {
 			print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
@@ -345,9 +345,9 @@ cluster.ACTIONet <- function(ACTIONet.out, annotation.name = NULL, resolution_pa
     } else {
         print("Perform default initialization")
         clusters = as.numeric(unsigned_cluster(ACTIONet.out$build.out$ACTIONet, resolution_parameter, 0))
-    }    
+    }
     names(clusters) = paste("Cluster", as.character(clusters), sep = " ")
-	
+
 	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -358,30 +358,30 @@ cluster.ACTIONet <- function(ACTIONet.out, annotation.name = NULL, resolution_pa
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
+
 	res = list(Labels = clusters, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
+
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)
 	eval(parse(text=cmd))
 
-		
+
     return(ACTIONet.out)
 }
 
 
 prune.cell.scores <- function(ACTIONet.out, scores, alpha_val = 0.9, transform = FALSE, deg.scale = FALSE) {
-    if (is.igraph(ACTIONet.out)) 
+    if (is.igraph(ACTIONet.out))
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
-    
+
     if (length(V(ACTIONet)) != length(scores)) {
-        R.utils::printf("Number of cells scores (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", length(scores), 
+        R.utils::printf("Number of cells scores (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", length(scores),
             length(V(ACTIONet)))
     }
     G = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
-    
-    if (transform == TRUE) 
+
+    if (transform == TRUE)
         scores = exp(scores)
-    
+
     scores[scores < 0] = 0
     u = as.matrix(scores/sum(scores))
     if (alpha_val != 0) {
@@ -390,8 +390,8 @@ prune.cell.scores <- function(ACTIONet.out, scores, alpha_val = 0.9, transform =
     } else {
         x = u
     }
-    
-    
+
+
     if (deg.scale == TRUE) {
         degs = Matrix::colSums(G)
         s = x/degs
@@ -400,51 +400,51 @@ prune.cell.scores <- function(ACTIONet.out, scores, alpha_val = 0.9, transform =
         s = x
     }
     cond = sweepcut(G, s)
-    
+
     selected.cells = order(s, decreasing = TRUE)[1:which.min(cond)]
     pruned.cells = setdiff(1:length(x), selected.cells)
     x[pruned.cells] = 0
-    
-    
+
+
     return(x)
 }
 
 extract.archetype.associated.cells <- function(ACTIONet.out, archetype.no, alpha_val = 0.9) {
     h = as.numeric(ACTIONet.out$reconstruct.out$H_stacked[archetype.no, ])
-    
+
     h = exp(h/mean(h))
-    
+
     x = prune.cell.scores(ACTIONet.out, h, alpha_val)
-    
+
     idx = which(x > 0)
-    
+
     return(ACTIONet.out$log$cells[idx])
 }
 
 
 impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.85, thread_no = 8, prune = FALSE, rescale = TRUE, expr.slot = "logcounts", max_it = 5) {
     require(igraph)
-    
+
     genes = unique(genes)
-    
-    if (is.igraph(ACTIONet.out)) 
+
+    if (is.igraph(ACTIONet.out))
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
-    
+
     if (length(V(ACTIONet)) != dim(sce)[2]) {
-        R.utils::printf("Number of cells in the input sce (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", dim(sce)[2], 
+        R.utils::printf("Number of cells in the input sce (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", dim(sce)[2],
             length(V(ACTIONet)))
     }
     G = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
-    
-    
+
+
     matched.genes = intersect(genes, rownames(sce))
     matched.idx = match(matched.genes, rownames(sce))
-    
+
     # Smooth/impute gene expressions
     if (!(expr.slot %in% names(SummarizedExperiment::assays(sce)))) {
         R.utils::printf("%s is not in assays of sce\n", expr.slot)
     }
-    
+
     if (length(matched.idx) > 1) {
         raw.gene.expression = Matrix::t(as(SummarizedExperiment::assays(sce)[[expr.slot]][matched.idx, ], "dgTMatrix"))
         U = raw.gene.expression
@@ -458,65 +458,65 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
         U = raw.gene.expression/sum(raw.gene.expression)
         gg = matched.genes
     }
-    
+
 
     G = ACTIONet.out$build.out$ACTIONet
 	#imputed.gene.expression = batchPR(G, as.matrix(U), alpha_val, thread_no)
-	imputed.gene.expression = PageRank_iter(G, as(U, 'sparseMatrix'), alpha_val, max_it)
-	    
+	imputed.gene.expression = PageRank_iter(G, as(U, 'sparseMatrix'), alpha_val, max_it, thread_no = thread_no)
+
     imputed.gene.expression[is.na(imputed.gene.expression)] = 0
-    
+
     # Prune values
     if (prune == TRUE) {
         imputed.gene.expression = apply(imputed.gene.expression, 2, function(x) {
             cond = sweepcut(ACTIONet.out$build.out$ACTIONet, x)
             idx = which.min(cond)
-            
+
             perm = order(x, decreasing = TRUE)
             x[perm[(idx + 1):length(x)]] = 0
-            
+
             return(x)
         })
     }
-    
+
     # rescale
     if (rescale) {
         imputed.gene.expression = sapply(1:dim(imputed.gene.expression)[2], function(col) {
             x = raw.gene.expression[, col]
             y = imputed.gene.expression[, col]
-            
+
             x.Q = quantile(x, 1)
             y.Q = quantile(y, 1)
-            
+
             if (y.Q == 0) {
                 return(array(0, length(x)))
             }
-            
+
             y = y * x.Q/y.Q
-            
+
             y[y > max(x)] = max(x)
-            
+
             return(y)
         })
     }
-    
+
     colnames(imputed.gene.expression) = gg
-    
+
     return(imputed.gene.expression)
 }
 
 impute.genes.using.archetype <- function(ACTIONet.out, genes, prune = FALSE) {
     require(igraph)
-    
+
     genes = intersect(unique(genes), rownames(ACTIONet.out$unification.out$cellstates.core))
 
-	
+
 	Z = as.matrix(ACTIONet.out$unification.out$cellstates.core[genes, ])
 	H = ACTIONet.out$unification.out$H.core
-	
+
 	imputed.gene.expression = t(Z %*% H)
 	colnames(imputed.gene.expression) = genes
-	
+
     return(imputed.gene.expression)
 }
 
@@ -527,45 +527,45 @@ assess.label.local.enrichment <- function(P, Labels) {
     counts = table(Labels)
     p = counts/sum(counts)
 	Annot = names(Labels)[match(as.numeric(names(counts)), Labels)]
-    
+
     X = sapply(names(p), function(label) {
         x = as.numeric(Matrix::sparseVector(x = 1, i = which(Labels == label), length = length(Labels)))
     })
 	colnames(X) = Annot
-	
+
     Exp = array(1, nrow(P)) %*% t(p)
     Obs = as(P %*% X, "dgTMatrix")
-    
+
     # Need to rescale due to missing values within the neighborhood
     rs = Matrix::rowSums(Obs)
     Obs = Matrix::sparseMatrix(i = Obs@i + 1, j = Obs@j + 1, x = Obs@x/rs[Obs@i + 1], dims = dim(Obs))
-    
+
     Lambda = Obs - Exp
-    
-    
+
+
     w2 = Matrix::rowSums(P^2)
     Nu = w2 %*% t(p)
-    
+
     a = as.numeric(qlcMatrix::rowMax(P)) %*% t(array(1, length(p)))
-    
-    
+
+
     logPval = (Lambda^2)/(2 * (Nu + (a * Lambda)/3))
     logPval[Lambda < 0] = 0
     logPval[is.na(logPval)] = 0
-    
+
     logPval = as.matrix(logPval)
-    
+
     colnames(logPval) = Annot
-    
+
 
     max.idx = apply(logPval, 1, which.max)
     updated.Labels = as.numeric(names(p))[max.idx]
     names(updated.Labels) = Annot[max.idx]
-    
+
     updated.Labels.conf = apply(logPval, 1, max)
-    
+
     res = list(Labels = updated.Labels, Labels.confidence = updated.Labels.conf, Enrichment = logPval)
-    
+
     return(res)
 }
 
@@ -580,38 +580,38 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
         W = P %*% Matrix::Diagonal(x = 1/w, n = length(w))
         P = W %*% Matrix::t(W)
     }
-    
-    
-	Labels = preprocess.labels(ACTIONet.out, annotation.in)			
+
+
+	Labels = preprocess.labels(ACTIONet.out, annotation.in)
 	if(is.null(Labels)) {
 		return(ACTIONet.out)
 	}
-	
+
 	Annot = sort(unique(Labels))
 	idx = match(Annot, Labels)
 	names(Annot) = names(Labels)[idx]
-    
+
     na.mask = is.na(Labels)
-    
+
     i = 1
     while (sum(na.mask) > 0) {
         R.utils::printf("iter %d\n", i)
-    	
+
         new.Labels = assess.label.local.enrichment(P, Labels)
-        
+
         mask = na.mask & (new.Labels$Labels.confidence > 3 + log(length(Labels)))
         Labels[mask] = new.Labels$Labels[mask]
 
         na.mask = is.na(Labels)
-        if (i == max_iter) 
+        if (i == max_iter)
             break
-        
+
         i = i + 1
     }
     new.Labels = assess.label.local.enrichment(P, Labels)
     Labels[na.mask] = new.Labels$Labels[na.mask]
 	Labels.conf = new.Labels$Labels.confidence
-    
+
     updated.Labels = as.numeric(Labels)
     names(updated.Labels) = names(Annot)[match(Labels, Annot)]
     if(adjust.levels == T) {
@@ -619,7 +619,7 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 	} else {
 		Labels = updated.Labels
 	}
-    
+
 
    	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
@@ -631,17 +631,17 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
+
 	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)	
-	eval(parse(text=cmd))    
+
+	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.out)
+	eval(parse(text=cmd))
 
 	if( highlight == T ) {
 		print("Adding annotation highlights")
-		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)			
+		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)
 	}
-	
+
 	return(ACTIONet.out)
 }
 
@@ -657,13 +657,13 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
         W = P %*% Matrix::Diagonal(x = 1/w, n = length(w))
         P = W %*% Matrix::t(W)
     }
-    
-    
-	Labels = preprocess.labels(ACTIONet.out, annotation.in)			
+
+
+	Labels = preprocess.labels(ACTIONet.out, annotation.in)
 	if(is.null(Labels)) {
 		return(ACTIONet.out)
 	}
-	
+
 	# Prunes "trivial" annotations and merges them to larger ones
 	min.cells = round(min.cell.fraction*length(Labels))
 	counts = table(Labels)
@@ -672,26 +672,26 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	if(sum(mask) > 0) {
 		Labels[mask] = NA
 		ACTIONet.out = infer.missing.cell.annotations(ACTIONet.out, annotation.in = Labels, annotation.out = annotation.out, adjust.levels = T, highligh = F)
-		#Labels = preprocess.labels(ACTIONet.out, tmp.label)			
-		#ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]	
+		#Labels = preprocess.labels(ACTIONet.out, tmp.label)
+		#ACTIONet.out$annotations = ACTIONet.out$annotations[-which(names(ACTIONet.out$annotations) == tmp.label)]
 	} else {
 		ACTIONet.out = add.cell.annotations(ACTIONet.out, Labels, annotation.name = annotation.out, highlight = F)
 	}
-	
+
 	Labels = ACTIONet.out$annotations[[annotation.out]]$Labels
-	
+
 	Annot = sort(unique(Labels))
 	idx = match(Annot, Labels)
 	names(Annot) = names(Labels)[idx]
-        
-    
-	for(i in 1:max_iter) {    
+
+
+	for(i in 1:max_iter) {
         R.utils::printf("iter %d\n", i)
-    	
+
         new.Labels = assess.label.local.enrichment(P, Labels)
         Enrichment = new.Labels$Enrichment
         curr.enrichment = sapply(1:nrow(Enrichment), function(k) Enrichment[k, names(Labels)[k]])
-        
+
         Diff.LFR = log2((new.Labels$Labels.confidence / curr.enrichment))
         Diff.LFR[is.na(Diff.LFR)] = 0
 
@@ -701,13 +701,13 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	Labels.conf = new.Labels$Labels.confidence
     updated.Labels = as.numeric(Labels)
     names(updated.Labels) = names(Annot)[match(Labels, Annot)]
-    
+
     if(adjust.levels == T) {
 		Labels = reannotate.labels(ACTIONet.out, updated.Labels)
 	} else {
 		Labels = updated.Labels
 	}
-    
+
    	if(! ('annotations' %in% names(ACTIONet.out)) ) {
 		ACTIONet.out$annotations = list()
 	}
@@ -718,16 +718,16 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	}
 	h = hashid_settings(salt = time.stamp, min_length = 8)
 	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
+
 	res = list(Labels = Labels, Labels.confidence = Labels.conf, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "cluster.ACTIONet")
-	
+
 	cmd = ACTIONet.out$annotations[[annotation.out]] = res
 
 	if( highlight == T ) {
 		print("Adding annotation highlights")
-		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)			
+		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)
 	}
-		
+
 	return(ACTIONet.out)
 }
 
@@ -737,21 +737,21 @@ classify.and.annotate.archetypes <- function(ACTIONet.out, sce, marker.genes = N
 	z = scale(diag(backbone))
 	clustered.mask = (z >= -1)
 	clustered.archetypes = which(clustered.mask)
-	
+
 	S_r = Matrix::t(reducedDims(sce)[[reduction_slot]])
-	
+
 	C.clustered = ACTIONet.out$unification.out$C.core[, clustered.mask]
 	W_r.clustered = S_r %*% C.clustered
 	H.clustered = runsimplexRegression(W_r.clustered, S_r)
-	
+
 	if(!is.null(marker.genes)) {
 		DE.clustered = assess.feature.specificity(sce, H.clustered, sce.data.attr = sce.data.attr)
 		annot.out = annotate.profile.using.markers(assays(DE.clustered)[["significance"]], marker.genes = marker.genes)
-									   
+
 		archEnrichment = Matrix::t(annot.out$Enrichment)
 		archEnrichment[archEnrichment < min.enrichment] = 0
 		X = doubleNorm(archEnrichment)
-		
+
 		cell.enrichment = Matrix::t(X %*% H.clustered)
 		cell.annotations = apply(cell.enrichment, 1, which.max)
 		names(cell.annotations) = names(marker.genes)[cell.annotations]
@@ -760,7 +760,7 @@ classify.and.annotate.archetypes <- function(ACTIONet.out, sce, marker.genes = N
 	} else {
 		cell.annotations = cell.annotations.confidence = archEnrichment = NULL
 	}
-	
+
 	if(sum(!clustered.mask) > 0) {
 		nonclustered.archetypes = which(!clustered.mask)
 		W.residual = cbind(scale(ACTIONet.out$unification.out$W.core[, clustered.mask]), orthoProject(ACTIONet.out$unification.out$W.core[, !clustered.mask], ACTIONet.out$unification.out$W.core[, clustered.mask]))
@@ -772,7 +772,7 @@ classify.and.annotate.archetypes <- function(ACTIONet.out, sce, marker.genes = N
 	}
 
 	res = list(clustered.archetypes = clustered.archetypes, H.clustered = H.clustered, clustered.archetype.annotations = annot.out, cell.annotations = cell.annotations, cell.annotations.confidence = cell.annotations.confidence, nonclustered.archetypes, H.nonclustered = H.nonclustered)
-	
+
 	return(res)
 }
 
@@ -785,8 +785,6 @@ construct.subACTIONet <- function(ACTIONet.out, sce, archetype.set, k_max = 20, 
 	sub.ACTIONet = run.ACTIONet(sce = sub.sce, k_max = k_max, layout.compactness = layout.compactness, thread_no = thread_no, epsilon = epsilon, LC = LC, arch.specificity.z = arch.specificity.z, core.z = core.z, sce.data.attr = sce.data.attr, sym_method = sym_method, scale.initial.coordinates = scale.initial.coordinates, reduction_slot = reduction_slot, batch = batch, batch.correction.rounds = batch.correction.rounds, batch.lambda = batch.lambda, k_min = k_min, n_epochs = n_epochs, compute.core = compute.core, compute.signature = compute.signature, specificity.mode = specificity.mode)
 
 	res = list(sce = sub.sce, ACTIONet.out = sub.ACTIONet)
-	
+
 	return(res)
 }
-
-

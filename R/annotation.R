@@ -102,7 +102,7 @@ annotate.archetypes.using.labels <- function(ACTIONet.out, annotation.known, cor
         N.null = sum(!mask)
         
         if( (N.class < 3) | (N.null < 3) ) {
-			return(rep(0, length(Labels)))
+			return(rep(0, nrow(profile)))
 		}
 		
         mu.class = Matrix::rowMeans(class.profile)
@@ -136,7 +136,7 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
 	cl.idx = which(names(ACTIONet.out$annotations) == annotation.cluster)
 	if(length(cl.idx) == 0) {
 		R.utils::printf('Error in correct.cell.labels: annotation.cluster "%s" not found\n', annotation.cluster)
-		return(ACTIONet.out)
+		return(NULL)
 	}		
 	clusters = ACTIONet.out$annotations[[cl.idx]]$Labels    
 	clusters = preprocess.labels(ACTIONet.out, clusters)
@@ -147,7 +147,7 @@ annotate.clusters.using.labels <- function(ACTIONet.out, annotation.cluster, ann
 		idx = which(names(ACTIONet.out$annotations) == annotation.known)
 		if(length(idx) == 0) {
 			R.utils::printf('Error in correct.cell.labels: annotation.known "%s" not found\n', annotation.known)
-			return(ACTIONet.out)
+			return(NULL)
 		}		
 		Labels = ACTIONet.out$annotations[[idx]]$Labels    
 	}
@@ -743,22 +743,23 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
     cluster.pruned.cells = vector("list", length(IDX))
     
     for (i in 1:length(IDX)) {
+		print(i)
         idx = IDX[[i]]
         
         sub.ACTIONet = igraph::induced.subgraph(ACTIONet.out$ACTIONet, V(ACTIONet.out$ACTIONet)[idx])
         
         sub.cn = coreness(sub.ACTIONet)
-
+        if(length(sub.cn) == 1) {
+			cluster.cell.connectivity[[i]] = -3
+			next
+		}
+        
 		G = as(get.adjacency(sub.ACTIONet, attr = "weight"), 'sparseMatrix')
 		U = matrix(sub.cn/sum(sub.cn), nrow = length(V(sub.ACTIONet)))
 		pr.out = PageRank_iter(G, as(U, 'sparseMatrix'), alpha = 0.85, max_it = 5)
 		
-        sub.cn = pr.out*length(pr.out)
-
-        if(length(sub.cn) == 1) {
-			cluster.cell.connectivity[[i]] = 1
-			next
-		}
+		sub.cn = pr.out*length(pr.out)
+		
         
         if (mad(sub.cn) > 0) {
             z = (sub.cn - median(sub.cn))/mad(sub.cn)
@@ -788,50 +789,6 @@ highlight.annotations <- function(ACTIONet.out, annotation.name, z.threshold = -
     ACTIONet.out$annotations[[annot.idx]]$highlight = out
     
     return(ACTIONet.out)
-}
-update.cell.annotations <- function(ACTIONet.out, Labels, annotation.name = NULL, min.cluster.size = 5, update.LFR.threshold = 1) {	
-	if(length(Labels) == 1) {
-		idx = which((names(ACTIONet.out$annotations) == Labels) | (sapply(ACTIONet.out$annotations, function(X) X$annotation.name == Labels)))
-		if(length(idx) == 0) {
-			R.utils::printf('Annotation %s not found\n', Labels)
-			return(ACTIONet.out)
-		}
-		
-		R.utils::printf('Annotation found: name = %s, tag = %s\n', names(ACTIONet.out$annotations)[[idx]], ACTIONet.out$annotations[[idx]]$annotation.name)
-		Labels = ACTIONet.out$annotations[[idx]]$Labels
-	}
-	
-	print("Perform mis-label correction using label propagation algorithm")
-	Labels = correct.cell.labels(ACTIONet.out, Labels, update.LFR.threshold = update.LFR.threshold )
-
-    names(Labels) = ACTIONet.out$log$cells   
-
-    if(! is.null(min.cluster.size) ) {
-		print("Re-assign trivial clusters")
-		counts = table(Labels)
-		Labels[Labels %in% as.numeric(names(counts)[counts < min.cluster.size])] = NA
-		Labels = as.numeric(infer.missing.Labels(ACTIONet.out, Labels))
-	}
-	
-	
-	if(! ('annotations' %in% names(ACTIONet.out)) ) {
-		ACTIONet.out$annotations = list()
-	}
-
-	time.stamp = as.character(Sys.time())
-	if(is.null(annotation.name)) {
-		annotation.name = sprintf('%s', time.stamp)
-	}
-	h = hashid_settings(salt = time.stamp, min_length = 8)
-	annotation.hashtag = ENCODE(length(ACTIONet.out$annotations)+1, h)
-	
-	res = list(Labels = Labels, Labels.confidence = NULL, DE.profile = NULL, highlight = NULL, cells = ACTIONet.out$log$cells, time.stamp = time.stamp, annotation.name = annotation.hashtag, type = "update.cell.annotations")
-	
-	cmd = sprintf("ACTIONet.out$annotations$\"%s\" = res", annotation.name)	
-	eval(parse(text=cmd))
-
-		
-    return(ACTIONet.out)	
 }
 
 
