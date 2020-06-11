@@ -4,10 +4,12 @@ run.ACTIONet <- function(sce, k_max = 30, layout.compactness = 50, thread_no = m
     require(Matrix)
     require(igraph)
     require(ACTIONet)
+    require(R.utils)
 
     if (!(sce.data.attr %in% names(SummarizedExperiment::assays(sce)))) {
-        R.utils::printf("Attribute %s is not an assay of the input sce\n", sce.data.attr)
-        return()
+        # R.utils::printf("Attribute %s is not an assay of the input sce\n", sce.data.attr)
+        out = sprintf("Attribute %s is not an assay of the input sce\n", sce.data.attr)
+        stop(out)
     }
 
     # Run ACTION
@@ -102,8 +104,9 @@ reconstruct.ACTIONet <- function(ACTIONet.out, sce, compactness_level = 50, thre
     set.seed(0)
 
     if (!(reduction_slot %in% names(reducedDims(sce)))) {
-        R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
-        return()
+        # R.utils::printf("%s is not in ReducedDims of sce\n", reduction_slot)
+        out = sprintf("%s is not in ReducedDims of sce\n", reduction_slot)
+        stop(out)
     }
     build.out = buildAdaptiveACTIONet(H_stacked = ACTIONet.out$reconstruct.out$H_stacked, LC = LC, M = hnsw_M, ef_construction = hnsw_ef_construction, hnsw_ef, thread_no=thread_no, sym_method = sym_method)
 
@@ -301,8 +304,9 @@ remove.cells <- function(ACTIONet.out, filtered.cells, force = TRUE) {
 
 cluster.ACTIONet.using.archetypes <- function(ACTIONet.out, annotation.name = NULL) {
 	if(! ('unification.out' %in% names(ACTIONet.out)) ) {
-		print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
-		return(ACTIONet.out)
+		# print("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+    out = sprintf("unification.out is not in ACTIONet.out. Please run unify.cell.states() first.")
+		stop(out)
 	}
 	clusters = as.numeric(ACTIONet.out$unification.out$assignments.core)
     names(clusters) = paste("Cluster", as.character(clusters), sep = " ")
@@ -431,8 +435,8 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
         ACTIONet = ACTIONet.out else ACTIONet = ACTIONet.out$ACTIONet
 
     if (length(V(ACTIONet)) != dim(sce)[2]) {
-        R.utils::printf("Number of cells in the input sce (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", dim(sce)[2],
-            length(V(ACTIONet)))
+        out = sprintf("Number of cells in sce (%d) doesn't match the number of vertices in the ACTIONet (%d)\n", ncol(sce), length(V(ACTIONet)))
+        stop(out)
     }
     G = as(get.adjacency(ACTIONet, attr = "weight"), "dgTMatrix")
 
@@ -442,7 +446,9 @@ impute.genes.using.ACTIONet <- function(ACTIONet.out, sce, genes, alpha_val = 0.
 
     # Smooth/impute gene expressions
     if (!(expr.slot %in% names(SummarizedExperiment::assays(sce)))) {
-        R.utils::printf("%s is not in assays of sce\n", expr.slot)
+        # R.utils::printf("%s is not in assays of sce\n", expr.slot)
+        out = sprintf("%s is not in assays of sce\n", expr.slot)
+        stop(out)
     }
 
     if (length(matched.idx) > 1) {
@@ -595,7 +601,9 @@ infer.missing.cell.annotations <- function(ACTIONet.out, annotation.in, annotati
 
     i = 1
     while (sum(na.mask) > 0) {
-        R.utils::printf("iter %d\n", i)
+        # R.utils::printf("iter %d\n", i)
+        msg = sprintf("iter %d\n", i)
+        message(msg)
 
         new.Labels = assess.label.local.enrichment(P, Labels)
 
@@ -724,7 +732,7 @@ correct.cell.annotations <- function(ACTIONet.out, annotation.in, annotation.out
 	cmd = ACTIONet.out$annotations[[annotation.out]] = res
 
 	if( highlight == T ) {
-		print("Adding annotation highlights")
+		message("Adding annotation highlights")
 		ACTIONet.out = highlight.annotations(ACTIONet.out, annotation.name = annotation.out)
 	}
 
