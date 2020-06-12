@@ -81,8 +81,8 @@ reduce.and.batch.correct.sce.fastMNN <- function(sce, batch.attr = NULL, reduced
     else {
       IDX = split(1:dim(sce)[2], batch.attr)
     }
-BPPARAM
-    sce.list = lapply(IDX, function(idx) computeSumFactors(sce[, idx], BPPARAM = BPPARAM ) )
+
+    sce.list = lapply(IDX, function(idx) computeSumFactors(sce[, idx], BPPARAM = BPPARAM) )
     sce.list.norm = do.call(batchelor::multiBatchNorm, list(sce.list, BPPARAM = BPPARAM))
 
 
